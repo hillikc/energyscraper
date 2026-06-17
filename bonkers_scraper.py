@@ -154,26 +154,43 @@ def extract_results():
         "Community Power"
     ]
 
+    ignore_phrases = [
+        "account access",
+        "smart meter",
+        "will be requested",
+        "standard electricity unit rates",
+        "sign up online",
+        "terms and conditions",
+        "cashback",
+        "welcome credit",
+        "discount",
+        "save",
+        "estimated annual",
+        "annual bill"
+    ]
+
     results = []
-    seen = set()
+    seen_companies = set()
 
     for i, line in enumerate(lines):
-        if " - " not in line:
-            continue
-
         matched_company = None
 
         for company in companies:
-            if line.startswith(company + " - "):
+            if company.lower() in line.lower():
                 matched_company = company
                 break
 
         if not matched_company:
             continue
 
-        plan = line.strip()
+        lower_line = line.lower()
+
+        if any(phrase in lower_line for phrase in ignore_phrases):
+            continue
+
         nearby = lines[i:i + 80]
-        annual_bill = ""
+
+        euro_values = []
 
         for item in nearby:
             matches = re.findall(r"€\s?\d{1,3}(?:,\d{3})?(?:\.\d{2})?", item)
@@ -182,19 +199,23 @@ def extract_results():
                 amount = float(match.replace("€", "").replace(",", "").replace(" ", ""))
 
                 if amount >= 1000:
-                    annual_bill = match.replace(" ", "")
-                    break
+                    euro_values.append((amount, match.replace(" ", "")))
 
-            if annual_bill:
-                break
-
-        if not annual_bill:
+        if not euro_values:
             continue
 
-        key = (matched_company, plan)
+        annual_bill = euro_values[0][1]
 
-        if key not in seen:
-            seen.add(key)
+        plan = line.strip()
+
+        if " - " not in plan:
+            for next_line in lines[i + 1:i + 6]:
+                if len(next_line) > 8 and "€" not in next_line:
+                    plan = matched_company + " - " + next_line
+                    break
+
+        if matched_company not in seen_companies:
+            seen_companies.add(matched_company)
             results.append({
                 "Rank": len(results) + 1,
                 "Company": matched_company,
