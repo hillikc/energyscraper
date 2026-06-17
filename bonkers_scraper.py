@@ -27,11 +27,7 @@ def js_click(element):
 
 def click_text(text, wait_time=25):
     for _ in range(wait_time):
-        elements = driver.find_elements(
-            By.XPATH,
-            f"//*[contains(normalize-space(), \"{text}\")]"
-        )
-
+        elements = driver.find_elements(By.XPATH, f"//*[contains(normalize-space(), \"{text}\")]")
         visible = []
 
         for element in elements:
@@ -125,101 +121,126 @@ def click_visible_yes(number):
         raise Exception(f"Could not find visible Yes number {number}")
 
 
-def click_show_more_buttons():
-    possible_buttons = [
-        "Show more",
-        "Load more",
-        "View more",
-        "See more",
-        "More results"
-    ]
-
-    for _ in range(8):
-        clicked = False
-
-        for text in possible_buttons:
-            buttons = driver.find_elements(
-                By.XPATH,
-                f"//*[contains(normalize-space(), \"{text}\")]"
-            )
-
-            for button in buttons:
-                try:
-                    if button.is_displayed():
-                        js_click(button)
-                        clicked = True
-                        time.sleep(3)
-                        break
-                except:
-                    pass
-
-            if clicked:
-                break
-
-        if not clicked:
-            break
-
-
 def scroll_results_page():
-    time.sleep(20)
+    time.sleep(15)
 
-    last_height = driver.execute_script("return document.body.scrollHeight")
-
-    for _ in range(30):
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(2)
-
-        click_show_more_buttons()
-
-        new_height = driver.execute_script("return document.body.scrollHeight")
-
-        if new_height == last_height:
-            break
-
-        last_height = new_height
+    for _ in range(25):
+        driver.execute_script("window.scrollBy(0, 900);")
+        time.sleep(1)
 
     driver.execute_script("window.scrollTo(0, 0);")
     time.sleep(2)
 
 
 def money_to_float(value):
-    value = value.replace("€", "").replace(",", "").replace(" ", "")
-    return float(value)
+    return float(value.replace("€", "").replace(",", "").replace(" ", ""))
 
 
-def is_bad_plan_line(line):
+def normalise_company(line):
+    lower = line.lower()
+
+    if "electric ireland" in lower:
+        return "Electric Ireland"
+    if "yuno" in lower:
+        return "Yuno Energy"
+    if "bord gáis" in lower or "bord gais" in lower or "bord gáís" in lower:
+        return "Bord Gáis Energy"
+    if "sse" in lower or "airtricity" in lower:
+        return "SSE Airtricity"
+    if "energia" in lower:
+        return "Energia"
+    if "flogas" in lower:
+        return "Flogas"
+    if "pinergy" in lower:
+        return "Pinergy"
+    if "prepaypower" in lower:
+        return "PrepayPower"
+    if "waterpower" in lower:
+        return "Waterpower"
+    if "community power" in lower:
+        return "Community Power"
+    if "ecopower" in lower:
+        return "Ecopower"
+
+    return None
+
+
+def is_plan_line(line):
+    lower = line.lower()
+
     bad_phrases = [
         "account access",
         "smart meter",
         "will be requested",
-        "off electric ireland",
-        "off bord",
-        "off energia",
-        "off sse",
-        "off flogas",
         "standard electricity unit rates",
         "cashback",
+        "includes",
+        "save now",
+        "show rates",
+        "see details",
+        "contract term",
+        "payment type",
+        "billing method",
+        "rate type",
+        "est 1-year cost",
         "terms",
-        "conditions",
-        "estimated annual bill",
-        "annual bill",
-        "compare",
-        "more info",
-        "select plan",
-        "details",
-        "standing charge",
-        "unit rate",
-        "night rate",
-        "day rate"
+        "conditions"
     ]
-
-    lower = line.lower()
 
     for phrase in bad_phrases:
         if phrase in lower:
-            return True
+            return False
+
+    if "electricity" in lower:
+        return True
+
+    if "-" in line and normalise_company(line):
+        return True
 
     return False
+
+
+def find_annual_bill(lines, start_index):
+    nearby = lines[start_index:start_index + 45]
+
+    for i, line in enumerate(nearby):
+        if "est 1-year cost" in line.lower() or "1-year cost" in line.lower():
+            search_area = nearby[i:i + 6]
+            joined = " ".join(search_area)
+
+            euro_matches = re.findall(
+                r"€\s?\d{1,3}(?:,\d{3})?(?:\.\d{2})?",
+                joined
+            )
+
+            for euro in euro_matches:
+                try:
+                    if money_to_float(euro) >= 1000:
+                        return euro.replace(" ", "")
+                except:
+                    pass
+
+    joined_nearby = " | ".join(nearby)
+
+    euro_matches = re.findall(
+        r"€\s?\d{1,3}(?:,\d{3})?(?:\.\d{2})?",
+        joined_nearby
+    )
+
+    valid_bills = []
+
+    for euro in euro_matches:
+        try:
+            amount = money_to_float(euro)
+            if amount >= 1000:
+                valid_bills.append(euro.replace(" ", ""))
+        except:
+            pass
+
+    if valid_bills:
+        return valid_bills[0]
+
+    return None
 
 
 def extract_results():
@@ -231,85 +252,35 @@ def extract_results():
 
     driver.save_screenshot("bonkers_debug.png")
 
-    companies = [
-        "Yuno Energy",
-        "Electric Ireland",
-        "Bord Gáis Energy",
-        "Bord Gais Energy",
-        "SSE Airtricity",
-        "Energia",
-        "Flogas",
-        "Pinergy",
-        "PrepayPower",
-        "Waterpower",
-        "Community Power",
-        "Ecopower"
-    ]
-
     results = []
-    seen_companies_and_prices = set()
+    seen = set()
 
     for i, line in enumerate(lines):
-        matched_company = None
+        company = normalise_company(line)
 
-        for company in companies:
-            if company.lower() in line.lower():
-                matched_company = company.replace("Bord Gais", "Bord Gáis")
-                break
-
-        if not matched_company:
+        if not company:
             continue
 
-        if is_bad_plan_line(line):
+        if not is_plan_line(line):
             continue
 
-        nearby = lines[i:i + 120]
-        nearby_text = " | ".join(nearby)
+        annual_bill = find_annual_bill(lines, i)
 
-        euro_matches = re.findall(
-            r"€\s?\d{1,3}(?:,\d{3})?(?:\.\d{2})?",
-            nearby_text
-        )
-
-        if not euro_matches:
+        if not annual_bill:
             continue
-
-        valid_bills = []
-
-        for euro in euro_matches:
-            try:
-                amount = money_to_float(euro)
-
-                if amount >= 1000:
-                    valid_bills.append(euro.replace(" ", ""))
-            except:
-                pass
-
-        if not valid_bills:
-            continue
-
-        annual_bill = valid_bills[0]
 
         plan = line
 
-        if line.strip().lower() == matched_company.lower() and i + 1 < len(lines):
-            next_line = lines[i + 1].strip()
+        key = (company, plan, annual_bill)
 
-            if not is_bad_plan_line(next_line):
-                plan = matched_company + " - " + next_line
-            else:
-                plan = matched_company
-
-        key = (matched_company, plan, annual_bill)
-
-        if key in seen_companies_and_prices:
+        if key in seen:
             continue
 
-        seen_companies_and_prices.add(key)
+        seen.add(key)
 
         results.append({
             "Rank": len(results) + 1,
-            "Company": matched_company,
+            "Company": company,
             "Plan": plan,
             "Estimated Annual Bill": annual_bill,
             "Source": "Bonkers.ie",
