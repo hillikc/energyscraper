@@ -26,16 +26,14 @@ jobs:
           pip install selenium pandas requests
 
       - name: Run scraper
-        run: |
-          python scraper.py
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+        run: python scraper.py
 
       - name: Commit CSV
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
-
           git add energy_rankings.csv
-
-          git diff --staged --quiet || git commit -m "Update energy prices"
-
+          git commit -m "Update energy prices" || echo "No changes to commit"
           git push
