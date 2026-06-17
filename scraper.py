@@ -21,7 +21,7 @@ driver = webdriver.Chrome(options=options)
 def click_id(element_id):
     element = driver.find_element(By.ID, element_id)
     driver.execute_script("arguments[0].click();", element)
-    time.sleep(0.7)
+    time.sleep(0.8)
 
 
 def get_company(plan_name):
@@ -46,10 +46,54 @@ def get_company(plan_name):
     return plan_name.split(" - ")[0]
 
 
-def extract_price(text):
-    matches = re.findall(r"€[\d,]+\.\d{2}", text)
-    if matches:
-        return matches[0]
+def get_annual_bill(lines):
+    for i, line in enumerate(lines):
+        if "estimated annual bill" in line.lower() and i > 0:
+            price = lines[i - 1]
+            if re.fullmatch(r"€[\d,]+\.\d{2}", price):
+                return price
+    return ""
+
+
+def get_plan_name(lines):
+    banned = [
+        "direct debit",
+        "credit/debit card",
+        "online billing",
+        "variable rate",
+        "12 months",
+        "available",
+        "payment type",
+        "billing type",
+        "rate type",
+        "contract length",
+        "exit fee",
+        "payment plan",
+        "estimated annual bill",
+        "see calculations",
+        "not available through switcher.ie",
+        "plan info",
+        "switch now",
+        "green electricity",
+    ]
+
+    for line in lines:
+        lower = line.lower()
+
+        if any(b in lower for b in banned):
+            continue
+
+        if line.startswith("€"):
+            continue
+
+        if "you save" in lower:
+            continue
+
+        if "cashback" in lower:
+            continue
+
+        return line
+
     return ""
 
 
@@ -79,59 +123,16 @@ try:
 
     for card in cards:
         try:
-            text = card.text.strip()
-            lines = [line.strip() for line in text.splitlines() if line.strip()]
+            lines = [line.strip() for line in card.text.splitlines() if line.strip()]
 
-            annual_bill = extract_price(text)
+            annual_bill = get_annual_bill(lines)
+            plan_name = get_plan_name(lines)
 
-            if not annual_bill:
+            if not annual_bill or not plan_name:
                 continue
-
-            plan_name = ""
-
-            for line in lines:
-                lower_line = line.lower()
-
-                if "estimated annual bill" in lower_line:
-                    continue
-                if "payment type" in lower_line:
-                    continue
-                if "billing type" in lower_line:
-                    continue
-                if "rate type" in lower_line:
-                    continue
-                if "contract length" in lower_line:
-                    continue
-                if "exit fee" in lower_line:
-                    continue
-                if "payment plan" in lower_line:
-                    continue
-                if "available" == lower_line:
-                    continue
-                if "not available through switcher.ie" in lower_line:
-                    continue
-                if "plan info" in lower_line:
-                    continue
-                if "switch now" in lower_line:
-                    continue
-                if line.startswith("€"):
-                    continue
-                if line.startswith("You save"):
-                    continue
-                if line in ["Direct Debit", "Online billing", "Variable rate", "12 months"]:
-                    continue
-
-                plan_name = line
-                break
-
-            if not plan_name:
-                continue
-
-            company = get_company(plan_name)
 
             results.append({
-                "Rank": len(results) + 1,
-                "Company": company,
+                "Company": get_company(plan_name),
                 "Plan": plan_name,
                 "Estimated Annual Bill": annual_bill,
                 "Source": "Switcher.ie",
@@ -143,20 +144,20 @@ try:
 
     df = pd.DataFrame(results)
 
-    df["Price Number"] = (
-        df["Estimated Annual Bill"]
-        .str.replace("€", "", regex=False)
-        .str.replace(",", "", regex=False)
-        .astype(float)
-    )
+    if not df.empty:
+        df["Price Number"] = (
+            df["Estimated Annual Bill"]
+            .str.replace("€", "", regex=False)
+            .str.replace(",", "", regex=False)
+            .astype(float)
+        )
 
-    df = df.sort_values("Price Number", ascending=True)
-    df = df.drop(columns=["Price Number"])
-    df = df.head(8)
-    df["Rank"] = range(1, len(df) + 1)
-
-    if df.empty:
-        print("No results found. Saving headers only.")
+        df = df[df["Price Number"] > 500]
+        df = df.sort_values("Price Number", ascending=True)
+        df = df.drop(columns=["Price Number"])
+        df = df.head(8)
+        df.insert(0, "Rank", range(1, len(df) + 1))
+    else:
         df = pd.DataFrame(columns=[
             "Rank",
             "Company",
