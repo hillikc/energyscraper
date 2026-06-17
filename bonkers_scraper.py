@@ -305,9 +305,10 @@ def extract_results():
             print(f"Skipped plan without annual bill: {plan}")
             continue
 
-        key = (company, plan, annual_bill)
+        key = (plan, annual_bill)
 
         if key in seen:
+            print(f"Duplicate skipped: {key}")
             continue
 
         seen.add(key)
@@ -320,6 +321,14 @@ def extract_results():
             "Source": "Bonkers.ie",
             "Last Checked": datetime.now().strftime("%d/%m/%Y %H:%M")
         })
+
+    results = sorted(
+        results,
+        key=lambda x: money_to_float(x["Estimated Annual Bill"])
+    )
+
+    for index, result in enumerate(results, start=1):
+        result["Rank"] = index
 
     print(f"Found {len(results)} results")
 
