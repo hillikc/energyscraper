@@ -52,19 +52,22 @@ def click_by_id(element_id):
 
 
 def accept_cookies():
-    buttons = driver.find_elements(
-        By.XPATH,
-        "//*[contains(normalize-space(), 'I ACCEPT') or contains(normalize-space(), 'Accept')]"
-    )
+    for _ in range(5):
+        buttons = driver.find_elements(
+            By.XPATH,
+            "//*[contains(normalize-space(), 'I ACCEPT') or contains(normalize-space(), 'Accept all') or contains(normalize-space(), 'Accept')]"
+        )
 
-    for button in buttons:
-        try:
-            if button.is_displayed():
-                driver.execute_script("arguments[0].click();", button)
-                time.sleep(2)
-                return True
-        except:
-            pass
+        for button in buttons:
+            try:
+                if button.is_displayed():
+                    driver.execute_script("arguments[0].click();", button)
+                    time.sleep(2)
+                    return True
+            except:
+                pass
+
+        time.sleep(1)
 
     return False
 
@@ -122,11 +125,13 @@ def click_visible_yes(number):
 
 
 def scroll_results_page():
-    time.sleep(15)
+    time.sleep(10)
+    accept_cookies()
 
-    for _ in range(25):
-        driver.execute_script("window.scrollBy(0, 900);")
+    for _ in range(30):
+        driver.execute_script("window.scrollBy(0, 800);")
         time.sleep(1)
+        accept_cookies()
 
     driver.execute_script("window.scrollTo(0, 0);")
     time.sleep(2)
@@ -136,14 +141,14 @@ def money_to_float(value):
     return float(value.replace("€", "").replace(",", "").replace(" ", ""))
 
 
-def normalise_company(line):
-    lower = line.lower()
+def normalise_company(plan):
+    lower = plan.lower()
 
     if "electric ireland" in lower:
         return "Electric Ireland"
     if "yuno" in lower:
         return "Yuno Energy"
-    if "bord gáis" in lower or "bord gais" in lower or "bord gáís" in lower:
+    if "bord gáis" in lower or "bord gais" in lower:
         return "Bord Gáis Energy"
     if "sse" in lower or "airtricity" in lower:
         return "SSE Airtricity"
@@ -153,8 +158,6 @@ def normalise_company(line):
         return "Flogas"
     if "pinergy" in lower:
         return "Pinergy"
-    if "prepaypower" in lower:
-        return "PrepayPower"
     if "waterpower" in lower:
         return "Waterpower"
     if "community power" in lower:
@@ -168,14 +171,10 @@ def normalise_company(line):
 def is_plan_line(line):
     lower = line.lower()
 
-    bad_phrases = [
+    bad = [
+        "off ",
         "account access",
         "smart meter",
-        "will be requested",
-        "standard electricity unit rates",
-        "cashback",
-        "includes",
-        "save now",
         "show rates",
         "see details",
         "contract term",
@@ -183,64 +182,16 @@ def is_plan_line(line):
         "billing method",
         "rate type",
         "est 1-year cost",
-        "terms",
-        "conditions"
+        "save",
+        "cashback",
+        "cookies",
+        "privacy"
     ]
 
-    for phrase in bad_phrases:
-        if phrase in lower:
-            return False
+    if any(x in lower for x in bad):
+        return False
 
-    if "electricity" in lower:
-        return True
-
-    if "-" in line and normalise_company(line):
-        return True
-
-    return False
-
-
-def find_annual_bill(lines, start_index):
-    nearby = lines[start_index:start_index + 45]
-
-    for i, line in enumerate(nearby):
-        if "est 1-year cost" in line.lower() or "1-year cost" in line.lower():
-            search_area = nearby[i:i + 6]
-            joined = " ".join(search_area)
-
-            euro_matches = re.findall(
-                r"€\s?\d{1,3}(?:,\d{3})?(?:\.\d{2})?",
-                joined
-            )
-
-            for euro in euro_matches:
-                try:
-                    if money_to_float(euro) >= 1000:
-                        return euro.replace(" ", "")
-                except:
-                    pass
-
-    joined_nearby = " | ".join(nearby)
-
-    euro_matches = re.findall(
-        r"€\s?\d{1,3}(?:,\d{3})?(?:\.\d{2})?",
-        joined_nearby
-    )
-
-    valid_bills = []
-
-    for euro in euro_matches:
-        try:
-            amount = money_to_float(euro)
-            if amount >= 1000:
-                valid_bills.append(euro.replace(" ", ""))
-        except:
-            pass
-
-    if valid_bills:
-        return valid_bills[0]
-
-    return None
+    return "electricity" in lower and normalise_company(line) is not None
 
 
 def extract_results():
@@ -255,21 +206,59 @@ def extract_results():
     results = []
     seen = set()
 
+    plan_indexes = []
+
     for i, line in enumerate(lines):
-        company = normalise_company(line)
+        if is_plan_line(line):
+            plan_indexes.append(i)
+
+    for position, start_index in enumerate(plan_indexes):
+        plan = lines[start_index]
+        company = normalise_company(plan)
 
         if not company:
             continue
 
-        if not is_plan_line(line):
-            continue
+        end_index = plan_indexes[position + 1] if position + 1 < len(plan_indexes) else min(start_index + 80, len(lines))
+        block = lines[start_index:end_index]
+        block_text = " | ".join(block)
 
-        annual_bill = find_annual_bill(lines, i)
+        annual_bill = None
+
+        for i, line in enumerate(block):
+            if "est 1-year cost" in line.lower():
+                nearby = " ".join(block[i:i + 4])
+                matches = re.findall(r"€\s?\d{1,3}(?:,\d{3})?(?:\.\d{2})?", nearby)
+
+                for match in matches:
+                    try:
+                        if money_to_float(match) >= 1000:
+                            annual_bill = match.replace(" ", "")
+                            break
+                    except:
+                        pass
+
+            if annual_bill:
+                break
+
+        if not annual_bill:
+            matches = re.findall(r"€\s?\d{1,3}(?:,\d{3})?(?:\.\d{2})?", block_text)
+
+            valid = []
+
+            for match in matches:
+                try:
+                    amount = money_to_float(match)
+                    if amount >= 1000:
+                        valid.append(match.replace(" ", ""))
+                except:
+                    pass
+
+            if valid:
+                annual_bill = valid[0]
 
         if not annual_bill:
             continue
-
-        plan = line
 
         key = (company, plan, annual_bill)
 
@@ -292,7 +281,7 @@ def extract_results():
     for result in results:
         print(result)
 
-    return results[:10]
+    return results[:8]
 
 
 try:
@@ -302,6 +291,8 @@ try:
     accept_cookies()
 
     click_text("Continue without upload")
+
+    accept_cookies()
 
     click_by_id("supplier-prepaypower-ie")
 
