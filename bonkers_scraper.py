@@ -5,8 +5,10 @@ from webdriver_manager.chrome import ChromeDriverManager
 import pandas as pd
 from datetime import datetime
 import time
+import os
 
-csv_path = "bonkers_rankings.csv"
+folder = r"C:\Users\paulh\Desktop\Energy Scraper"
+csv_path = os.path.join(folder, "bonkers_rankings.csv")
 
 url = "https://www.bonkers.ie/compare-gas-electricity-prices/results/"
 
@@ -23,7 +25,7 @@ driver = webdriver.Chrome(
 )
 
 driver.get(url)
-time.sleep(10)
+time.sleep(8)
 
 cards = driver.find_elements(By.CSS_SELECTOR, "div")
 
@@ -54,7 +56,6 @@ for card in cards:
         lines = [line.strip() for line in text.splitlines() if line.strip()]
 
         plan_name = ""
-
         for line in lines:
             if " - " in line and any(company.lower() in line.lower() for company in known_companies):
                 plan_name = line
@@ -85,15 +86,12 @@ for card in cards:
                     annual_bill = lines[i + 1]
                 break
 
-        if annual_bill == "" or "€" not in annual_bill:
+        if annual_bill == "":
             euro_lines = [line for line in lines if line.startswith("€")]
             for euro in euro_lines:
                 if "," in euro:
                     annual_bill = euro
                     break
-
-        if annual_bill == "":
-            continue
 
         results.append({
             "Rank": len(results) + 1,
@@ -104,14 +102,10 @@ for card in cards:
             "Last Checked": datetime.now().strftime("%d/%m/%Y %H:%M")
         })
 
-    except Exception:
+    except:
         pass
 
 driver.quit()
-
-if len(results) == 0:
-    print("No Bonkers results found. CSV not updated.")
-    exit()
 
 df = pd.DataFrame(results[:8])
 df.to_csv(csv_path, index=False, encoding="utf-8-sig")
