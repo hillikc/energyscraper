@@ -23,11 +23,9 @@ jobs:
 
       - name: Install packages
         run: |
-          pip install selenium pandas requests
+          pip install selenium pandas
 
       - name: Run scraper
-        env:
-          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
         run: python scraper.py
 
       - name: Commit CSV
