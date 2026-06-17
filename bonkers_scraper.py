@@ -27,7 +27,11 @@ def js_click(element):
 
 def click_text(text, wait_time=25):
     for _ in range(wait_time):
-        elements = driver.find_elements(By.XPATH, f"//*[contains(normalize-space(), \"{text}\")]")
+        elements = driver.find_elements(
+            By.XPATH,
+            f"//*[contains(normalize-space(), \"{text}\")]"
+        )
+
         visible = []
 
         for element in elements:
@@ -52,24 +56,44 @@ def click_by_id(element_id):
 
 
 def accept_cookies():
-    for _ in range(5):
-        buttons = driver.find_elements(
-            By.XPATH,
-            "//*[contains(normalize-space(), 'I ACCEPT') or contains(normalize-space(), 'Accept all') or contains(normalize-space(), 'Accept')]"
-        )
+    buttons = driver.find_elements(
+        By.XPATH,
+        "//*[contains(normalize-space(), 'I ACCEPT') or contains(normalize-space(), 'Accept all') or contains(normalize-space(), 'Accept')]"
+    )
 
-        for button in buttons:
-            try:
-                if button.is_displayed():
-                    driver.execute_script("arguments[0].click();", button)
-                    time.sleep(2)
-                    return True
-            except:
-                pass
-
-        time.sleep(1)
+    for button in buttons:
+        try:
+            if button.is_displayed():
+                driver.execute_script("arguments[0].click();", button)
+                time.sleep(2)
+                return True
+        except:
+            pass
 
     return False
+
+
+def remove_cookie_popups():
+    driver.execute_script("""
+        const selectors = [
+            '[id*="cookie"]',
+            '[class*="cookie"]',
+            '[id*="consent"]',
+            '[class*="consent"]',
+            '[aria-label*="cookie"]',
+            '[aria-label*="Cookie"]',
+            '[id*="privacy"]',
+            '[class*="privacy"]'
+        ];
+
+        selectors.forEach(selector => {
+            document.querySelectorAll(selector).forEach(el => el.remove());
+        });
+
+        document.body.style.overflow = 'auto';
+    """)
+
+    time.sleep(1)
 
 
 def choose_dropdown_by_text(text):
@@ -126,12 +150,13 @@ def click_visible_yes(number):
 
 def scroll_results_page():
     time.sleep(10)
-    accept_cookies()
 
-    for _ in range(30):
+    remove_cookie_popups()
+
+    for _ in range(35):
         driver.execute_script("window.scrollBy(0, 800);")
         time.sleep(1)
-        accept_cookies()
+        remove_cookie_popups()
 
     driver.execute_script("window.scrollTo(0, 0);")
     time.sleep(2)
@@ -158,6 +183,8 @@ def normalise_company(plan):
         return "Flogas"
     if "pinergy" in lower:
         return "Pinergy"
+    if "prepaypower" in lower:
+        return "PrepayPower"
     if "waterpower" in lower:
         return "Waterpower"
     if "community power" in lower:
@@ -171,7 +198,7 @@ def normalise_company(plan):
 def is_plan_line(line):
     lower = line.lower()
 
-    bad = [
+    bad_phrases = [
         "off ",
         "account access",
         "smart meter",
@@ -185,11 +212,16 @@ def is_plan_line(line):
         "save",
         "cashback",
         "cookies",
-        "privacy"
+        "privacy",
+        "terms",
+        "conditions",
+        "includes",
+        "price change"
     ]
 
-    if any(x in lower for x in bad):
-        return False
+    for phrase in bad_phrases:
+        if phrase in lower:
+            return False
 
     return "electricity" in lower and normalise_company(line) is not None
 
@@ -219,7 +251,12 @@ def extract_results():
         if not company:
             continue
 
-        end_index = plan_indexes[position + 1] if position + 1 < len(plan_indexes) else min(start_index + 80, len(lines))
+        end_index = (
+            plan_indexes[position + 1]
+            if position + 1 < len(plan_indexes)
+            else min(start_index + 100, len(lines))
+        )
+
         block = lines[start_index:end_index]
         block_text = " | ".join(block)
 
@@ -227,8 +264,11 @@ def extract_results():
 
         for i, line in enumerate(block):
             if "est 1-year cost" in line.lower():
-                nearby = " ".join(block[i:i + 4])
-                matches = re.findall(r"€\s?\d{1,3}(?:,\d{3})?(?:\.\d{2})?", nearby)
+                nearby = " ".join(block[i:i + 6])
+                matches = re.findall(
+                    r"€\s?\d{1,3}(?:,\d{3})?(?:\.\d{2})?",
+                    nearby
+                )
 
                 for match in matches:
                     try:
@@ -242,22 +282,27 @@ def extract_results():
                 break
 
         if not annual_bill:
-            matches = re.findall(r"€\s?\d{1,3}(?:,\d{3})?(?:\.\d{2})?", block_text)
+            matches = re.findall(
+                r"€\s?\d{1,3}(?:,\d{3})?(?:\.\d{2})?",
+                block_text
+            )
 
-            valid = []
+            valid_bills = []
 
             for match in matches:
                 try:
                     amount = money_to_float(match)
+
                     if amount >= 1000:
-                        valid.append(match.replace(" ", ""))
+                        valid_bills.append(match.replace(" ", ""))
                 except:
                     pass
 
-            if valid:
-                annual_bill = valid[0]
+            if valid_bills:
+                annual_bill = valid_bills[0]
 
         if not annual_bill:
+            print(f"Skipped plan without annual bill: {plan}")
             continue
 
         key = (company, plan, annual_bill)
@@ -289,10 +334,12 @@ try:
     time.sleep(5)
 
     accept_cookies()
+    remove_cookie_popups()
 
     click_text("Continue without upload")
 
     accept_cookies()
+    remove_cookie_popups()
 
     click_by_id("supplier-prepaypower-ie")
 
@@ -311,7 +358,11 @@ try:
 
     click_text("Compare prices")
 
+    remove_cookie_popups()
+
     scroll_results_page()
+
+    remove_cookie_popups()
 
     results = extract_results()
 
