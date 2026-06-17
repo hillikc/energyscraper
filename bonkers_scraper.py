@@ -6,7 +6,7 @@ import time
 
 csv_path = "bonkers_rankings.csv"
 
-url = "https://switcher.ie/gas-electricity/comparison/"
+url = "https://www.bonkers.ie/compare-gas-electricity-prices/"
 
 options = webdriver.ChromeOptions()
 options.add_argument("--headless=new")
@@ -18,25 +18,20 @@ options.add_argument("--disable-dev-shm-usage")
 driver = webdriver.Chrome(options=options)
 
 
-def click_id(element_id):
-    element = driver.find_element(By.ID, element_id)
-    driver.execute_script("arguments[0].click();", element)
-    time.sleep(0.5)
-
-
 def get_company(plan_name):
     mappings = {
-        "EnergySaver": "SSE Airtricity",
-        "1 Year Electricity Variable Plan": "Yuno Energy",
-        "New Elec Only": "Bord Gáis Energy",
-        "1 Year Home Electricity": "Electric Ireland",
-        "Green Electricity": "Electric Ireland",
+        "Yuno": "Yuno Energy",
         "Flogas": "Flogas",
+        "SSE": "SSE Airtricity",
+        "Airtricity": "SSE Airtricity",
         "Energia": "Energia",
+        "Bord Gáis": "Bord Gáis Energy",
+        "Bord Gais": "Bord Gáis Energy",
+        "Electric Ireland": "Electric Ireland",
         "Waterpower": "Waterpower",
         "Community Power": "Community Power",
         "Ecopower": "Ecopower",
-        "Pinergy": "Pinergy"
+        "Pinergy": "Pinergy",
     }
 
     for key, company in mappings.items():
@@ -48,43 +43,32 @@ def get_company(plan_name):
 
 try:
     driver.get(url)
-    time.sleep(3)
-
-    click_id("switch_electricity")
-    click_id("comparison_electricity_current_supplier_prepaypower")
-    click_id("comparison_electricity_payment_type_direct_debit")
-    click_id("comparison_electricity_meter_type_twenty_four_hour")
-    click_id("comparison_electricity_bill_type_online")
-    click_id("comparison_electricity_consumption_calculation_type_national_average")
-    click_id("comparison_electricity_search_type_all")
-    click_id("comparison_electricity_include_cashback_1")
-
-    form = driver.find_element(
-        By.XPATH,
-        "//input[@id='comparison_electricity_current_supplier_prepaypower']/ancestor::form"
-    )
-
-    driver.execute_script("arguments[0].submit();", form)
-
     time.sleep(8)
 
-    cards = driver.find_elements(By.CSS_SELECTOR, ".c-result-row")
+    cards = driver.find_elements(By.CSS_SELECTOR, ".result, .results-card, .product-card, .tariff-card")
 
     results = []
 
     for card in cards:
         try:
-            plan_name = card.find_element(
-                By.CSS_SELECTOR,
-                ".c-result-row__plan-name"
-            ).text.strip()
+            text = card.text.strip()
 
-            price_text = card.find_element(
-                By.CSS_SELECTOR,
-                ".c-result-row__plan-detail__price-amount"
-            ).text.strip()
+            if not text:
+                continue
 
-            annual_bill = price_text.split("\n")[0].strip()
+            lines = [line.strip() for line in text.split("\n") if line.strip()]
+
+            price_line = None
+            for line in lines:
+                if "€" in line and any(char.isdigit() for char in line):
+                    price_line = line
+                    break
+
+            if not price_line:
+                continue
+
+            plan_name = lines[0]
+            annual_bill = price_line
             company = get_company(plan_name)
 
             results.append({
@@ -92,7 +76,7 @@ try:
                 "Company": company,
                 "Plan": plan_name,
                 "Estimated Annual Bill": annual_bill,
-                "Source": "Switcher.ie",
+                "Source": "Bonkers.ie",
                 "Last Checked": datetime.now().strftime("%d/%m/%Y %H:%M")
             })
 
@@ -102,7 +86,7 @@ try:
     df = pd.DataFrame(results[:8])
 
     if df.empty:
-        print("No results found. CSV not updated.")
+        print("No Bonkers results found. CSV not updated.")
     else:
         df.to_csv(csv_path, index=False, encoding="utf-8-sig")
         print(df)
