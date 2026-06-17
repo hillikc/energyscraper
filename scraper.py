@@ -18,10 +18,19 @@ options.add_argument("--disable-dev-shm-usage")
 driver = webdriver.Chrome(options=options)
 
 
-def click_id(element_id):
-    element = driver.find_element(By.ID, element_id)
-    driver.execute_script("arguments[0].click();", element)
-    time.sleep(0.8)
+def click_id(element_id, wait_time=30):
+    for _ in range(wait_time):
+        try:
+            element = driver.find_element(By.ID, element_id)
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+            time.sleep(0.5)
+            driver.execute_script("arguments[0].click();", element)
+            time.sleep(0.8)
+            return
+        except:
+            time.sleep(1)
+
+    raise Exception(f"Could not find element ID: {element_id}")
 
 
 def get_company(plan_name):
@@ -75,6 +84,9 @@ def get_plan_name(lines):
         "plan info",
         "switch now",
         "green electricity",
+        "cashback not included",
+        "you save",
+        "welcome bonus",
     ]
 
     for line in lines:
@@ -86,20 +98,15 @@ def get_plan_name(lines):
         if line.startswith("€"):
             continue
 
-        if "you save" in lower:
-            continue
-
-        if "cashback" in lower:
-            continue
-
-        return line
+        if "electricity" in lower or "energy" in lower or "flogas" in lower or "waterpower" in lower:
+            return line
 
     return ""
 
 
 try:
     driver.get(url)
-    time.sleep(5)
+    time.sleep(12)
 
     click_id("switch_electricity")
     click_id("comparison_electricity_current_supplier_prepaypower")
@@ -116,7 +123,7 @@ try:
     )
     driver.execute_script("arguments[0].submit();", form)
 
-    time.sleep(10)
+    time.sleep(12)
 
     cards = driver.find_elements(By.CSS_SELECTOR, ".c-result-row")
     results = []
