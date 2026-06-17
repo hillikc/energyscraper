@@ -132,6 +132,27 @@ def scroll_results_page():
     time.sleep(2)
 
 
+def get_company(plan):
+    companies = [
+        "Yuno Energy",
+        "Electric Ireland",
+        "Bord Gáis Energy",
+        "SSE Airtricity",
+        "Energia",
+        "Flogas",
+        "Pinergy",
+        "PrepayPower",
+        "Waterpower",
+        "Community Power"
+    ]
+
+    for company in companies:
+        if company.lower() in plan.lower():
+            return company
+
+    return plan.split(" - ")[0].strip()
+
+
 def extract_results():
     page_text = driver.find_element(By.TAG_NAME, "body").text
     lines = [line.strip() for line in page_text.splitlines() if line.strip()]
