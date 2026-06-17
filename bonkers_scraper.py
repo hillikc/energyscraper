@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime
 import time
 
-csv_path = "energy_rankings.csv"
+csv_path = "bonkers_rankings.csv"
 
 url = "https://switcher.ie/gas-electricity/comparison/"
 
@@ -17,10 +17,12 @@ options.add_argument("--disable-dev-shm-usage")
 
 driver = webdriver.Chrome(options=options)
 
+
 def click_id(element_id):
     element = driver.find_element(By.ID, element_id)
     driver.execute_script("arguments[0].click();", element)
     time.sleep(0.5)
+
 
 def get_company(plan_name):
     mappings = {
@@ -43,6 +45,7 @@ def get_company(plan_name):
 
     return plan_name.split(" - ")[0]
 
+
 try:
     driver.get(url)
     time.sleep(3)
@@ -60,6 +63,7 @@ try:
         By.XPATH,
         "//input[@id='comparison_electricity_current_supplier_prepaypower']/ancestor::form"
     )
+
     driver.execute_script("arguments[0].submit();", form)
 
     time.sleep(8)
@@ -70,8 +74,16 @@ try:
 
     for card in cards:
         try:
-            plan_name = card.find_element(By.CSS_SELECTOR, ".c-result-row__plan-name").text.strip()
-            price_text = card.find_element(By.CSS_SELECTOR, ".c-result-row__plan-detail__price-amount").text.strip()
+            plan_name = card.find_element(
+                By.CSS_SELECTOR,
+                ".c-result-row__plan-name"
+            ).text.strip()
+
+            price_text = card.find_element(
+                By.CSS_SELECTOR,
+                ".c-result-row__plan-detail__price-amount"
+            ).text.strip()
+
             annual_bill = price_text.split("\n")[0].strip()
             company = get_company(plan_name)
 
@@ -88,10 +100,13 @@ try:
             print(f"Skipped one card: {e}")
 
     df = pd.DataFrame(results[:8])
-    df.to_csv(csv_path, index=False, encoding="utf-8-sig")
 
-    print(df)
-    print(f"Saved to {csv_path}")
+    if df.empty:
+        print("No results found. CSV not updated.")
+    else:
+        df.to_csv(csv_path, index=False, encoding="utf-8-sig")
+        print(df)
+        print(f"Saved to {csv_path}")
 
 finally:
     driver.quit()
