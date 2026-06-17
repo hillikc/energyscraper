@@ -32,20 +32,10 @@ jobs:
         run: |
           python bonkers_scraper.py
 
-      - name: Show generated files
-        run: |
-          ls -la
-          echo "----- CSV -----"
-          cat bonkers_rankings.csv || true
-          echo "----- DEBUG TXT -----"
-          cat bonkers_debug_text.txt || true
-
-      - name: Commit updated files
+      - name: Commit updated CSV
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
           git add bonkers_rankings.csv
-          git add bonkers_debug_text.txt || true
-          git add bonkers_debug.png || true
           git diff --staged --quiet || git commit -m "Auto update Bonkers rankings"
           git push
