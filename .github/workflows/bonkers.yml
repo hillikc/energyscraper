@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  run-scraper:
+  run-bonkers:
     runs-on: ubuntu-latest
 
     steps:
@@ -28,38 +28,14 @@ jobs:
         run: |
           pip install pandas selenium
 
-      - name: Run scraper
+      - name: Run Bonkers scraper
         run: |
-          python scraper.py
-
-      - name: Show output files
-        if: always()
-        run: |
-          ls -la
-          echo "CSV preview:"
-          cat bonkers_rankings.csv || true
-
-      - name: Upload debug files
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: bonkers-debug-files
-          path: |
-            bonkers_debug.png
-            bonkers_debug_text.txt
-            bonkers_error.png
-            bonkers_rankings.csv
+          python bonkers_scraper.py
 
       - name: Commit updated CSV
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
-
           git add bonkers_rankings.csv
-
-          if git diff --staged --quiet; then
-            echo "No CSV changes to commit"
-          else
-            git commit -m "Auto update Bonkers rankings"
-            git push
-          fi
+          git diff --staged --quiet || git commit -m "Auto update Bonkers rankings"
+          git push
