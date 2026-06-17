@@ -5,8 +5,22 @@ import pandas as pd
 from datetime import datetime
 import time
 import re
+import os
 
 csv_path = "bonkers_rankings.csv"
+
+companies = [
+    "Yuno Energy",
+    "Electric Ireland",
+    "Bord Gáis Energy",
+    "SSE Airtricity",
+    "Energia",
+    "Flogas",
+    "Pinergy",
+    "PrepayPower",
+    "Waterpower",
+    "Community Power"
+]
 
 options = webdriver.ChromeOptions()
 options.add_argument("--headless=new")
@@ -14,6 +28,7 @@ options.add_argument("--window-size=1920,1080")
 options.add_argument("--disable-gpu")
 options.add_argument("--no-sandbox")
 options.add_argument("--disable-dev-shm-usage")
+options.add_argument("--disable-blink-features=AutomationControlled")
 
 driver = webdriver.Chrome(options=options)
 
@@ -25,7 +40,22 @@ def js_click(element):
     time.sleep(1.2)
 
 
+def save_debug(name):
+    try:
+        page_text = driver.find_element(By.TAG_NAME, "body").text
+
+        with open(f"{name}.txt", "w", encoding="utf-8") as f:
+            f.write(page_text)
+
+        driver.save_screenshot(f"{name}.png")
+        print(f"Saved debug files: {name}.txt and {name}.png")
+    except Exception as debug_error:
+        print("Could not save debug files:", debug_error)
+
+
 def click_text(text, wait_time=25):
+    print(f"Looking for text: {text}")
+
     for _ in range(wait_time):
         elements = driver.find_elements(
             By.XPATH,
@@ -33,6 +63,7 @@ def click_text(text, wait_time=25):
         )
 
         visible = []
+
         for element in elements:
             try:
                 if element.is_displayed():
@@ -41,23 +72,38 @@ def click_text(text, wait_time=25):
                 pass
 
         if visible:
+            print(f"Clicking text: {text}")
             js_click(visible[-1])
             return True
 
         time.sleep(1)
 
+    save_debug("bonkers_error")
     raise Exception(f"Could not find text: {text}")
 
 
 def click_by_id(element_id):
-    element = driver.find_element(By.ID, element_id)
-    js_click(element)
+    print(f"Looking for ID: {element_id}")
+
+    for _ in range(20):
+        try:
+            element = driver.find_element(By.ID, element_id)
+            js_click(element)
+            print(f"Clicked ID: {element_id}")
+            return True
+        except:
+            time.sleep(1)
+
+    save_debug("bonkers_error")
+    raise Exception(f"Could not find ID: {element_id}")
 
 
 def accept_cookies():
+    print("Checking cookies")
+
     buttons = driver.find_elements(
         By.XPATH,
-        "//*[contains(normalize-space(), 'I ACCEPT') or contains(normalize-space(), 'Accept')]"
+        "//*[contains(normalize-space(), 'I ACCEPT') or contains(normalize-space(), 'Accept') or contains(normalize-space(), 'Accept all')]"
     )
 
     for button in buttons:
@@ -65,66 +111,98 @@ def accept_cookies():
             if button.is_displayed():
                 driver.execute_script("arguments[0].click();", button)
                 time.sleep(2)
+                print("Cookies accepted")
                 return True
         except:
             pass
 
+    print("No cookie button found")
     return False
 
 
 def choose_dropdown_by_text(text):
-    selects = driver.find_elements(By.TAG_NAME, "select")
+    print(f"Looking for dropdown option: {text}")
 
-    for select_element in selects:
-        try:
-            if not select_element.is_displayed():
-                continue
+    for _ in range(20):
+        selects = driver.find_elements(By.TAG_NAME, "select")
 
-            select = Select(select_element)
-            options_text = [option.text.strip() for option in select.options]
+        for select_element in selects:
+            try:
+                if not select_element.is_displayed():
+                    continue
 
-            if text in options_text:
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", select_element)
-                time.sleep(0.5)
-                select.select_by_visible_text(text)
-                time.sleep(1)
-                return True
-        except:
-            pass
+                select = Select(select_element)
+                options_text = [option.text.strip() for option in select.options]
 
+                if text in options_text:
+                    driver.execute_script(
+                        "arguments[0].scrollIntoView({block: 'center'});",
+                        select_element
+                    )
+                    time.sleep(0.5)
+                    select.select_by_visible_text(text)
+                    time.sleep(1)
+                    print(f"Selected dropdown option: {text}")
+                    return True
+            except:
+                pass
+
+        time.sleep(1)
+
+    save_debug("bonkers_error")
     raise Exception(f"Could not choose dropdown option: {text}")
 
 
 def click_radio_true(field_name):
-    element = driver.find_element(
-        By.XPATH,
-        f"//fieldset[@data-field='{field_name}']//input[@value='true']"
-    )
-    driver.execute_script("arguments[0].click();", element)
-    time.sleep(1)
+    print(f"Looking for radio field: {field_name}")
+
+    for _ in range(20):
+        try:
+            element = driver.find_element(
+                By.XPATH,
+                f"//fieldset[@data-field='{field_name}']//input[@value='true']"
+            )
+            driver.execute_script("arguments[0].click();", element)
+            time.sleep(1)
+            print(f"Clicked radio true: {field_name}")
+            return True
+        except:
+            time.sleep(1)
+
+    save_debug("bonkers_error")
+    raise Exception(f"Could not click radio true for field: {field_name}")
 
 
 def click_visible_yes(number):
-    yes_options = driver.find_elements(By.XPATH, "//*[normalize-space()='Yes']")
-    visible_yes = []
+    print(f"Looking for visible Yes number {number}")
 
-    for option in yes_options:
-        try:
-            if option.is_displayed():
-                visible_yes.append(option)
-        except:
-            pass
+    for _ in range(20):
+        yes_options = driver.find_elements(By.XPATH, "//*[normalize-space()='Yes']")
+        visible_yes = []
 
-    if len(visible_yes) >= number:
-        js_click(visible_yes[number - 1])
-    else:
-        raise Exception(f"Could not find visible Yes number {number}")
+        for option in yes_options:
+            try:
+                if option.is_displayed():
+                    visible_yes.append(option)
+            except:
+                pass
+
+        if len(visible_yes) >= number:
+            js_click(visible_yes[number - 1])
+            print(f"Clicked visible Yes number {number}")
+            return True
+
+        time.sleep(1)
+
+    save_debug("bonkers_error")
+    raise Exception(f"Could not find visible Yes number {number}")
 
 
 def scroll_results_page():
-    time.sleep(15)
+    print("Waiting for results page")
+    time.sleep(20)
 
-    for _ in range(15):
+    for _ in range(20):
         driver.execute_script("window.scrollBy(0, 900);")
         time.sleep(1)
 
@@ -132,28 +210,9 @@ def scroll_results_page():
     time.sleep(2)
 
 
-def get_company(plan):
-    companies = [
-        "Yuno Energy",
-        "Electric Ireland",
-        "Bord Gáis Energy",
-        "SSE Airtricity",
-        "Energia",
-        "Flogas",
-        "Pinergy",
-        "PrepayPower",
-        "Waterpower",
-        "Community Power"
-    ]
-
-    for company in companies:
-        if company.lower() in plan.lower():
-            return company
-
-    return plan.split(" - ")[0].strip()
-
-
 def extract_results():
+    print("Extracting results")
+
     page_text = driver.find_element(By.TAG_NAME, "body").text
     lines = [line.strip() for line in page_text.splitlines() if line.strip()]
 
@@ -161,19 +220,6 @@ def extract_results():
         f.write(page_text)
 
     driver.save_screenshot("bonkers_debug.png")
-
-    companies = [
-        "Yuno Energy",
-        "Electric Ireland",
-        "Bord Gáis Energy",
-        "SSE Airtricity",
-        "Energia",
-        "Flogas",
-        "Pinergy",
-        "PrepayPower",
-        "Waterpower",
-        "Community Power"
-    ]
 
     results = []
     seen = set()
@@ -189,7 +235,7 @@ def extract_results():
         if not matched_company:
             continue
 
-        nearby = lines[i:i + 60]
+        nearby = lines[i:i + 80]
         nearby_text = " | ".join(nearby)
 
         euro_matches = re.findall(
@@ -211,6 +257,7 @@ def extract_results():
 
         if key not in seen:
             seen.add(key)
+
             results.append({
                 "Rank": len(results) + 1,
                 "Company": matched_company,
@@ -220,12 +267,16 @@ def extract_results():
                 "Last Checked": datetime.now().strftime("%d/%m/%Y %H:%M")
             })
 
+    print(f"Found {len(results)} results")
     return results[:10]
 
 
 try:
+    print("Opening Bonkers")
     driver.get("https://www.bonkers.ie/compare-gas-electricity-prices/electricity/")
-    time.sleep(5)
+    time.sleep(7)
+
+    print("Current URL:", driver.current_url)
 
     accept_cookies()
 
@@ -252,7 +303,12 @@ try:
 
     results = extract_results()
 
+    if not results:
+        save_debug("bonkers_no_results")
+        raise Exception("No results found. CSV was NOT updated to avoid blank file.")
+
     df = pd.DataFrame(results)
+
     df.to_csv(csv_path, index=False, encoding="utf-8-sig")
 
     print(df)
@@ -261,12 +317,8 @@ try:
 except Exception as e:
     print("ERROR:", e)
     print("Current URL:", driver.current_url)
-
-    try:
-        print(driver.find_element(By.TAG_NAME, "body").text)
-        driver.save_screenshot("bonkers_error.png")
-    except:
-        pass
+    save_debug("bonkers_error")
+    raise
 
 finally:
     driver.quit()
