@@ -253,7 +253,7 @@ def extract_results():
             else:
                 plan = matched_company
 
-        key = (matched_company, annual_bill)
+        key = (matched_company, plan, annual_bill)
 
         if key in seen_companies_and_prices:
             continue
@@ -269,7 +269,12 @@ def extract_results():
             "Last Checked": datetime.now().strftime("%d/%m/%Y %H:%M")
         })
 
-    return results[:8]
+    print(f"Found {len(results)} results")
+
+    for result in results:
+        print(result)
+
+    return results[:10]
 
 
 try:
