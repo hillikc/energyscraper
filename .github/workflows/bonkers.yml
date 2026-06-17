@@ -1,43 +1,45 @@
 name: Bonkers Scraper
 
 on:
-schedule:
-- cron: '0 */2 * * *'   # Runs every 2 hours
-workflow_dispatch:
+  schedule:
+    - cron: '0 */2 * * *'   # Runs every 2 hours
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
-run-scraper:
-runs-on: ubuntu-latest
+  run-scraper:
+    runs-on: ubuntu-latest
 
-```
-steps:
-  - name: Checkout repo
-    uses: actions/checkout@v4
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-  - name: Set up Python
-    uses: actions/setup-python@v5
-    with:
-      python-version: '3.11'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-  - name: Install Chrome
-    uses: browser-actions/setup-chrome@v1
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@v1
 
-  - name: Install dependencies
-    run: |
-      pip install pandas selenium
+      - name: Install dependencies
+        run: |
+          pip install pandas selenium requests
 
-  - name: Run scraper
-    run: |
-      python scraper.py
+      - name: Run scrapers
+        run: |
+          python scraper.py
+          python bonkers_scraper.py
 
-  - name: Commit updated CSVs
-    run: |
-      git config --global user.name "github-actions"
-      git config --global user.email "github-actions@github.com"
+      - name: Commit updated CSVs
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
 
-      git add bonkers_rankings.csv energy_rankings.csv
+          git add bonkers_rankings.csv energy_rankings.csv
 
-      git diff --staged --quiet || git commit -m "Auto update rankings"
+          git diff --staged --quiet || git commit -m "Auto update rankings"
 
-      git push
-```
+          git push
