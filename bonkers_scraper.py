@@ -23,7 +23,7 @@ driver = webdriver.Chrome(
 )
 
 driver.get(url)
-time.sleep(8)
+time.sleep(10)
 
 cards = driver.find_elements(By.CSS_SELECTOR, "div")
 
@@ -69,7 +69,6 @@ for card in cards:
         seen_plans.add(plan_name)
 
         company = ""
-
         for company_name in known_companies:
             if company_name.lower() in plan_name.lower():
                 company = company_name
@@ -93,6 +92,9 @@ for card in cards:
                     annual_bill = euro
                     break
 
+        if annual_bill == "":
+            continue
+
         results.append({
             "Rank": len(results) + 1,
             "Company": company,
@@ -106,6 +108,10 @@ for card in cards:
         pass
 
 driver.quit()
+
+if len(results) == 0:
+    print("No Bonkers results found. CSV not updated.")
+    exit()
 
 df = pd.DataFrame(results[:8])
 df.to_csv(csv_path, index=False, encoding="utf-8-sig")
