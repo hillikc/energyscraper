@@ -93,7 +93,6 @@ def choose_dropdown_by_text(text):
                     select.select_by_visible_text(text)
                     time.sleep(1)
                     return True
-
         except:
             pass
 
@@ -137,6 +136,46 @@ def scroll_results_page():
     time.sleep(2)
 
 
+def money_to_float(value):
+    value = value.replace("€", "").replace(",", "").replace(" ", "")
+    return float(value)
+
+
+def is_bad_plan_line(line):
+    bad_phrases = [
+        "account access",
+        "smart meter",
+        "will be requested",
+        "off electric ireland",
+        "off bord",
+        "off energia",
+        "off sse",
+        "off flogas",
+        "standard electricity unit rates",
+        "cashback",
+        "terms",
+        "conditions",
+        "estimated annual bill",
+        "annual bill",
+        "compare",
+        "more info",
+        "select plan",
+        "details",
+        "standing charge",
+        "unit rate",
+        "night rate",
+        "day rate"
+    ]
+
+    lower = line.lower()
+
+    for phrase in bad_phrases:
+        if phrase in lower:
+            return True
+
+    return False
+
+
 def extract_results():
     page_text = driver.find_element(By.TAG_NAME, "body").text
     lines = [line.strip() for line in page_text.splitlines() if line.strip()]
@@ -162,7 +201,7 @@ def extract_results():
     ]
 
     results = []
-    seen = set()
+    seen_companies_and_prices = set()
 
     for i, line in enumerate(lines):
         matched_company = None
@@ -175,7 +214,10 @@ def extract_results():
         if not matched_company:
             continue
 
-        nearby = lines[i:i + 60]
+        if is_bad_plan_line(line):
+            continue
+
+        nearby = lines[i:i + 70]
         nearby_text = " | ".join(nearby)
 
         euro_matches = re.findall(
@@ -186,28 +228,48 @@ def extract_results():
         if not euro_matches:
             continue
 
-        annual_bill = euro_matches[0].replace(" ", "")
+        valid_bills = []
+
+        for euro in euro_matches:
+            try:
+                amount = money_to_float(euro)
+                if amount >= 1000:
+                    valid_bills.append(euro.replace(" ", ""))
+            except:
+                pass
+
+        if not valid_bills:
+            continue
+
+        annual_bill = valid_bills[0]
 
         plan = line
 
         if line.strip().lower() == matched_company.lower() and i + 1 < len(lines):
-            plan = matched_company + " - " + lines[i + 1]
+            next_line = lines[i + 1].strip()
 
-        key = (matched_company, plan, annual_bill)
+            if not is_bad_plan_line(next_line):
+                plan = matched_company + " - " + next_line
+            else:
+                plan = matched_company
 
-        if key not in seen:
-            seen.add(key)
+        key = (matched_company, annual_bill)
 
-            results.append({
-                "Rank": len(results) + 1,
-                "Company": matched_company,
-                "Plan": plan,
-                "Estimated Annual Bill": annual_bill,
-                "Source": "Bonkers.ie",
-                "Last Checked": datetime.now().strftime("%d/%m/%Y %H:%M")
-            })
+        if key in seen_companies_and_prices:
+            continue
 
-    return results[:10]
+        seen_companies_and_prices.add(key)
+
+        results.append({
+            "Rank": len(results) + 1,
+            "Company": matched_company,
+            "Plan": plan,
+            "Estimated Annual Bill": annual_bill,
+            "Source": "Bonkers.ie",
+            "Last Checked": datetime.now().strftime("%d/%m/%Y %H:%M")
+        })
+
+    return results[:8]
 
 
 try:
