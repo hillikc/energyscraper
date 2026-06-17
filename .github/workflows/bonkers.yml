@@ -26,7 +26,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pandas selenium webdriver-manager
+          pip install pandas selenium
 
       - name: Run Bonkers scraper
         run: |
