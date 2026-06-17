@@ -154,23 +154,8 @@ def extract_results():
         "Community Power"
     ]
 
-    ignore_phrases = [
-        "account access",
-        "smart meter",
-        "will be requested",
-        "standard electricity unit rates",
-        "sign up online",
-        "terms and conditions",
-        "cashback",
-        "welcome credit",
-        "discount",
-        "save",
-        "estimated annual",
-        "annual bill"
-    ]
-
     results = []
-    seen_companies = set()
+    seen = set()
 
     for i, line in enumerate(lines):
         matched_company = None
@@ -183,39 +168,28 @@ def extract_results():
         if not matched_company:
             continue
 
-        lower_line = line.lower()
+        nearby = lines[i:i + 60]
+        nearby_text = " | ".join(nearby)
 
-        if any(phrase in lower_line for phrase in ignore_phrases):
+        euro_matches = re.findall(
+            r"€\s?\d{1,3}(?:,\d{3})?(?:\.\d{2})?",
+            nearby_text
+        )
+
+        if not euro_matches:
             continue
 
-        nearby = lines[i:i + 80]
+        annual_bill = euro_matches[0].replace(" ", "")
 
-        euro_values = []
+        plan = line
 
-        for item in nearby:
-            matches = re.findall(r"€\s?\d{1,3}(?:,\d{3})?(?:\.\d{2})?", item)
+        if line.strip() == matched_company and i + 1 < len(lines):
+            plan = matched_company + " - " + lines[i + 1]
 
-            for match in matches:
-                amount = float(match.replace("€", "").replace(",", "").replace(" ", ""))
+        key = (matched_company, plan, annual_bill)
 
-                if amount >= 1000:
-                    euro_values.append((amount, match.replace(" ", "")))
-
-        if not euro_values:
-            continue
-
-        annual_bill = euro_values[0][1]
-
-        plan = line.strip()
-
-        if " - " not in plan:
-            for next_line in lines[i + 1:i + 6]:
-                if len(next_line) > 8 and "€" not in next_line:
-                    plan = matched_company + " - " + next_line
-                    break
-
-        if matched_company not in seen_companies:
-            seen_companies.add(matched_company)
+        if key not in seen:
+            seen.add(key)
             results.append({
                 "Rank": len(results) + 1,
                 "Company": matched_company,
