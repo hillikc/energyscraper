@@ -125,12 +125,58 @@ def click_visible_yes(number):
         raise Exception(f"Could not find visible Yes number {number}")
 
 
-def scroll_results_page():
-    time.sleep(15)
+def click_show_more_buttons():
+    possible_buttons = [
+        "Show more",
+        "Load more",
+        "View more",
+        "See more",
+        "More results"
+    ]
 
-    for _ in range(15):
-        driver.execute_script("window.scrollBy(0, 900);")
-        time.sleep(1)
+    for _ in range(8):
+        clicked = False
+
+        for text in possible_buttons:
+            buttons = driver.find_elements(
+                By.XPATH,
+                f"//*[contains(normalize-space(), \"{text}\")]"
+            )
+
+            for button in buttons:
+                try:
+                    if button.is_displayed():
+                        js_click(button)
+                        clicked = True
+                        time.sleep(3)
+                        break
+                except:
+                    pass
+
+            if clicked:
+                break
+
+        if not clicked:
+            break
+
+
+def scroll_results_page():
+    time.sleep(20)
+
+    last_height = driver.execute_script("return document.body.scrollHeight")
+
+    for _ in range(30):
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(2)
+
+        click_show_more_buttons()
+
+        new_height = driver.execute_script("return document.body.scrollHeight")
+
+        if new_height == last_height:
+            break
+
+        last_height = new_height
 
     driver.execute_script("window.scrollTo(0, 0);")
     time.sleep(2)
@@ -217,7 +263,7 @@ def extract_results():
         if is_bad_plan_line(line):
             continue
 
-        nearby = lines[i:i + 70]
+        nearby = lines[i:i + 120]
         nearby_text = " | ".join(nearby)
 
         euro_matches = re.findall(
@@ -233,6 +279,7 @@ def extract_results():
         for euro in euro_matches:
             try:
                 amount = money_to_float(euro)
+
                 if amount >= 1000:
                     valid_bills.append(euro.replace(" ", ""))
             except:
