@@ -1,39 +1,42 @@
 name: Energy Scraper
 
 on:
-  workflow_dispatch:
-  schedule:
-    - cron: '0 */2 * * *'
+workflow_dispatch:
+schedule:
+- cron: '0 */2 * * *'
 
 permissions:
-  contents: write
+contents: write
 
 jobs:
-  scrape:
-    runs-on: ubuntu-latest
+scrape:
+runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+steps:
+  - name: Checkout repo
+    uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+  - name: Setup Python
+    uses: actions/setup-python@v5
+    with:
+      python-version: "3.12"
 
-      - name: Install packages
-        run: |
-          pip install selenium pandas requests
+  - name: Install packages
+    run: |
+      pip install selenium pandas requests
 
-      - name: Run scraper
-        env:
-          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-        run: python scraper.py
+  - name: Run scraper
+    env:
+      TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+    run: python scraper.py
 
-      - name: Commit CSV
-        run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
-          git add energy_rankings.csv
-          git commit -m "Update energy prices" || echo "No changes to commit"
-          git push
+  - name: Commit CSV files
+    run: |
+      git config --global user.name "github-actions"
+      git config --global user.email "github-actions@github.com"
+
+      git add energy_rankings.csv bonkers_rankings.csv
+
+      git commit -m "Update energy prices" || echo "No changes to commit"
+
+      git push
