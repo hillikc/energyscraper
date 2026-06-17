@@ -157,6 +157,11 @@ def extract_results():
     page_text = driver.find_element(By.TAG_NAME, "body").text
     lines = [line.strip() for line in page_text.splitlines() if line.strip()]
 
+    with open("bonkers_debug_text.txt", "w", encoding="utf-8") as f:
+        f.write(page_text)
+
+    driver.save_screenshot("bonkers_debug.png")
+
     companies = [
         "Yuno Energy",
         "Electric Ireland",
