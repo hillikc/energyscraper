@@ -5,10 +5,8 @@ from webdriver_manager.chrome import ChromeDriverManager
 import pandas as pd
 from datetime import datetime
 import time
-import os
 
-folder = r"C:\Users\paulh\Desktop\Energy Scraper"
-csv_path = os.path.join(folder, "bonkers_rankings.csv")
+csv_path = "bonkers_rankings.csv"
 
 url = "https://www.bonkers.ie/compare-gas-electricity-prices/results/"
 
@@ -56,6 +54,7 @@ for card in cards:
         lines = [line.strip() for line in text.splitlines() if line.strip()]
 
         plan_name = ""
+
         for line in lines:
             if " - " in line and any(company.lower() in line.lower() for company in known_companies):
                 plan_name = line
@@ -70,6 +69,7 @@ for card in cards:
         seen_plans.add(plan_name)
 
         company = ""
+
         for company_name in known_companies:
             if company_name.lower() in plan_name.lower():
                 company = company_name
@@ -86,7 +86,7 @@ for card in cards:
                     annual_bill = lines[i + 1]
                 break
 
-        if annual_bill == "":
+        if annual_bill == "" or "€" not in annual_bill:
             euro_lines = [line for line in lines if line.startswith("€")]
             for euro in euro_lines:
                 if "," in euro:
@@ -102,7 +102,7 @@ for card in cards:
             "Last Checked": datetime.now().strftime("%d/%m/%Y %H:%M")
         })
 
-    except:
+    except Exception:
         pass
 
 driver.quit()
