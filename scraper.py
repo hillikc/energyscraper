@@ -4,8 +4,10 @@ import pandas as pd
 from datetime import datetime
 import time
 import re
+import os
 
 csv_path = "energy_rankings.csv"
+history_path = "switcher_history.csv"
 url = "https://switcher.ie/gas-electricity/comparison/"
 
 options = webdriver.ChromeOptions()
@@ -105,6 +107,8 @@ def get_plan_name(lines):
 
 
 try:
+    checked_time = datetime.now().strftime("%d/%m/%Y %H:%M")
+
     driver.get(url)
     time.sleep(12)
 
@@ -143,7 +147,7 @@ try:
                 "Plan": plan_name,
                 "Estimated Annual Bill": annual_bill,
                 "Source": "Switcher.ie",
-                "Last Checked": datetime.now().strftime("%d/%m/%Y %H:%M")
+                "Last Checked": checked_time
             })
 
         except Exception as e:
@@ -164,6 +168,17 @@ try:
         df = df.drop(columns=["Price Number"])
         df = df.head(8)
         df.insert(0, "Rank", range(1, len(df) + 1))
+
+        df = df[
+            [
+                "Rank",
+                "Company",
+                "Plan",
+                "Estimated Annual Bill",
+                "Source",
+                "Last Checked"
+            ]
+        ]
     else:
         df = pd.DataFrame(columns=[
             "Rank",
@@ -174,10 +189,23 @@ try:
             "Last Checked"
         ])
 
+    # Save latest/current Switcher rankings
     df.to_csv(csv_path, index=False, encoding="utf-8-sig")
 
+    # Append to Switcher history
+    history_df = df.copy()
+
+    if os.path.exists(history_path):
+        existing_history = pd.read_csv(history_path)
+        combined_history = pd.concat([existing_history, history_df], ignore_index=True)
+    else:
+        combined_history = history_df
+
+    combined_history.to_csv(history_path, index=False, encoding="utf-8-sig")
+
     print(df)
-    print(f"Saved to {csv_path}")
+    print(f"Saved latest rankings to {csv_path}")
+    print(f"Appended history to {history_path}")
 
 finally:
     driver.quit()
