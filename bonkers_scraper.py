@@ -7,6 +7,7 @@ import time
 import re
 
 csv_path = "bonkers_rankings.csv"
+history_path = "bonkers_history.csv"
 
 options = webdriver.ChromeOptions()
 options.add_argument("--headless=new")
@@ -238,7 +239,6 @@ def extract_results():
 
     results = []
     seen = set()
-
     plan_indexes = []
 
     for i, line in enumerate(lines):
@@ -315,12 +315,12 @@ def extract_results():
         seen.add(key)
 
         results.append({
+            "Last Checked": datetime.now().strftime("%d/%m/%Y %H:%M"),
             "Rank": len(results) + 1,
             "Company": company,
             "Plan": plan,
             "Estimated Annual Bill": annual_bill,
-            "Source": "Bonkers.ie",
-            "Last Checked": datetime.now().strftime("%d/%m/%Y %H:%M")
+            "Source": "Bonkers.ie"
         })
 
     results = sorted(
@@ -337,6 +337,47 @@ def extract_results():
         print(result)
 
     return results[:8]
+
+
+def save_results(results):
+    df = pd.DataFrame(results)
+
+    if df.empty:
+        print("No Bonkers results found. CSV not updated.")
+        return
+
+    df = df[
+        [
+            "Last Checked",
+            "Rank",
+            "Company",
+            "Plan",
+            "Estimated Annual Bill",
+            "Source"
+        ]
+    ]
+
+    df.to_csv(csv_path, index=False, encoding="utf-8-sig")
+    print(f"Saved latest rankings to {csv_path}")
+
+    try:
+        history_df = pd.read_csv(history_path)
+    except:
+        history_df = pd.DataFrame()
+
+    updated_history = pd.concat(
+        [history_df, df],
+        ignore_index=True
+    )
+
+    updated_history.to_csv(
+        history_path,
+        index=False,
+        encoding="utf-8-sig"
+    )
+
+    print(f"Updated history file: {history_path}")
+    print(df)
 
 
 try:
@@ -376,14 +417,7 @@ try:
 
     results = extract_results()
 
-    df = pd.DataFrame(results)
-
-    if df.empty:
-        print("No Bonkers results found. CSV not updated.")
-    else:
-        df.to_csv(csv_path, index=False, encoding="utf-8-sig")
-        print(df)
-        print(f"Saved to {csv_path}")
+    save_results(results)
 
 except Exception as e:
     print("ERROR:", e)
