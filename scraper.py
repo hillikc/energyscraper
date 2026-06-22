@@ -39,7 +39,29 @@ def clean_text(text):
     return re.sub(r"\s+", " ", text).strip()
 
 
+def remove_smart_meter_notice(text):
+    text = clean_text(text)
+
+    text = re.sub(
+        r"\s*Yuno Energy will request a Smart Meter from ESB Networks on your behalf when you join.*$",
+        "",
+        text,
+        flags=re.IGNORECASE
+    )
+
+    text = re.sub(
+        r"\s*will request a Smart Meter from ESB Networks on your behalf when you join.*$",
+        "",
+        text,
+        flags=re.IGNORECASE
+    )
+
+    return clean_text(text)
+
+
 def get_company(plan_name):
+    plan_name = remove_smart_meter_notice(plan_name)
+
     mappings = {
         "EnergySaver": "SSE Airtricity",
         "1 Year Electricity Variable Plan": "Yuno Energy",
@@ -59,9 +81,7 @@ def get_company(plan_name):
         if key.lower() in plan_name.lower():
             return company
 
-    company = plan_name.split(" - ")[0]
-    company = company.split(" will request a Smart Meter")[0]
-    return clean_text(company)
+    return clean_text(plan_name.split(" - ")[0])
 
 
 def get_annual_bill(lines):
@@ -95,16 +115,14 @@ def get_plan_name(lines):
         "cashback not included",
         "you save",
         "welcome bonus",
-        "smart meter",
-        "esb networks",
-        "on your behalf",
-        "when you join",
-        "will request",
     ]
 
     for line in lines:
-        line = clean_text(line)
+        line = remove_smart_meter_notice(line)
         lower = line.lower()
+
+        if not line:
+            continue
 
         if any(b in lower for b in banned):
             continue
@@ -112,7 +130,14 @@ def get_plan_name(lines):
         if line.startswith("€"):
             continue
 
-        if "electricity" in lower or "energy" in lower or "flogas" in lower or "waterpower" in lower:
+        if (
+            "electricity" in lower
+            or "energysaver" in lower
+            or "flogas" in lower
+            or "energia" in lower
+            or "waterpower" in lower
+            or "yuno" in lower
+        ):
             return line
 
     return ""
@@ -154,8 +179,10 @@ try:
             if not annual_bill or not plan_name:
                 continue
 
+            company = get_company(plan_name)
+
             results.append({
-                "Company": get_company(plan_name),
+                "Company": company,
                 "Plan": plan_name,
                 "Estimated Annual Bill": annual_bill,
                 "Source": "Switcher.ie",
