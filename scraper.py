@@ -35,6 +35,10 @@ def click_id(element_id, wait_time=30):
     raise Exception(f"Could not find element ID: {element_id}")
 
 
+def clean_text(text):
+    return re.sub(r"\s+", " ", text).strip()
+
+
 def get_company(plan_name):
     mappings = {
         "EnergySaver": "SSE Airtricity",
@@ -48,13 +52,16 @@ def get_company(plan_name):
         "Community Power": "Community Power",
         "Ecopower": "Ecopower",
         "Pinergy": "Pinergy",
+        "Yuno Energy": "Yuno Energy",
     }
 
     for key, company in mappings.items():
         if key.lower() in plan_name.lower():
             return company
 
-    return plan_name.split(" - ")[0]
+    company = plan_name.split(" - ")[0]
+    company = company.split(" will request a Smart Meter")[0]
+    return clean_text(company)
 
 
 def get_annual_bill(lines):
@@ -85,13 +92,18 @@ def get_plan_name(lines):
         "not available through switcher.ie",
         "plan info",
         "switch now",
-        "green electricity",
         "cashback not included",
         "you save",
         "welcome bonus",
+        "smart meter",
+        "esb networks",
+        "on your behalf",
+        "when you join",
+        "will request",
     ]
 
     for line in lines:
+        line = clean_text(line)
         lower = line.lower()
 
         if any(b in lower for b in banned):
@@ -134,7 +146,7 @@ try:
 
     for card in cards:
         try:
-            lines = [line.strip() for line in card.text.splitlines() if line.strip()]
+            lines = [clean_text(line) for line in card.text.splitlines() if clean_text(line)]
 
             annual_bill = get_annual_bill(lines)
             plan_name = get_plan_name(lines)
@@ -189,10 +201,8 @@ try:
             "Last Checked"
         ])
 
-    # Save latest/current Switcher rankings
     df.to_csv(csv_path, index=False, encoding="utf-8-sig")
 
-    # Append to Switcher history
     history_df = df.copy()
 
     if os.path.exists(history_path):
