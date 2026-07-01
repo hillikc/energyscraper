@@ -395,11 +395,32 @@ try:
     click_radio_true("cashback")
     click_visible_yes(2)
 
-    click_text("Compare prices")
+    # Click the actual Compare prices button
+compare_buttons = driver.find_elements(
+    By.XPATH,
+    "//button[contains(normalize-space(), 'Compare prices')] | //input[@value='Compare prices']"
+)
 
-    remove_cookie_popups()
+clicked = False
 
-    scroll_results_page()
+for button in compare_buttons:
+    try:
+        if button.is_displayed():
+            js_click(button)
+            clicked = True
+            break
+    except:
+        pass
+
+if not clicked:
+    raise Exception("Could not click real Compare prices button")
+
+time.sleep(20)
+
+print("After compare URL:", driver.current_url)
+
+remove_cookie_popups()
+scroll_results_page()
 
     remove_cookie_popups()
 
