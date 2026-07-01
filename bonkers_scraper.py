@@ -149,6 +149,24 @@ def click_visible_yes(number):
         raise Exception(f"Could not find visible Yes number {number}")
 
 
+def click_compare_prices():
+    compare_buttons = driver.find_elements(
+        By.XPATH,
+        "//button[contains(normalize-space(), 'Compare prices')] | //input[@value='Compare prices']"
+    )
+
+    for button in compare_buttons:
+        try:
+            if button.is_displayed():
+                js_click(button)
+                return True
+        except:
+            pass
+
+    # Fallback: click visible text if the real button selector changes
+    return click_text("Compare prices", wait_time=10)
+
+
 def scroll_results_page():
     time.sleep(10)
 
@@ -395,37 +413,16 @@ try:
     click_radio_true("cashback")
     click_visible_yes(2)
 
-    # Click the actual Compare prices button
-compare_buttons = driver.find_elements(
-    By.XPATH,
-    "//button[contains(normalize-space(), 'Compare prices')] | //input[@value='Compare prices']"
-)
+    click_compare_prices()
 
-clicked = False
+    time.sleep(20)
+    print("After compare URL:", driver.current_url)
 
-for button in compare_buttons:
-    try:
-        if button.is_displayed():
-            js_click(button)
-            clicked = True
-            break
-    except:
-        pass
-
-if not clicked:
-    raise Exception("Could not click real Compare prices button")
-
-time.sleep(20)
-
-print("After compare URL:", driver.current_url)
-
-remove_cookie_popups()
-scroll_results_page()
-
+    remove_cookie_popups()
+    scroll_results_page()
     remove_cookie_popups()
 
     results = extract_results()
-
     save_results(results)
 
 except Exception as e:
