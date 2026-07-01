@@ -230,6 +230,13 @@ def is_plan_line(line):
 
 def extract_results():
     page_text = driver.find_element(By.TAG_NAME, "body").text
+
+    print("=" * 80)
+    print("BONKERS PAGE TEXT START")
+    print(page_text[:10000])
+    print("BONKERS PAGE TEXT END")
+    print("=" * 80)
+
     lines = [line.strip() for line in page_text.splitlines() if line.strip()]
 
     with open("bonkers_debug_text.txt", "w", encoding="utf-8") as f:
@@ -244,6 +251,8 @@ def extract_results():
     for i, line in enumerate(lines):
         if is_plan_line(line):
             plan_indexes.append(i)
+
+    print("Plan indexes found:", plan_indexes)
 
     for position, start_index in enumerate(plan_indexes):
         plan = lines[start_index]
@@ -263,44 +272,23 @@ def extract_results():
 
         annual_bill = None
 
-        for i, line in enumerate(block):
-            if "est 1-year cost" in line.lower():
-                nearby = " ".join(block[i:i + 6])
-                matches = re.findall(
-                    r"€\s?\d{1,3}(?:,\d{3})?(?:\.\d{2})?",
-                    nearby
-                )
+        matches = re.findall(
+            r"€\s?\d{1,3}(?:,\d{3})?(?:\.\d{2})?",
+            block_text
+        )
 
-                for match in matches:
-                    try:
-                        if money_to_float(match) >= 1000:
-                            annual_bill = match.replace(" ", "")
-                            break
-                    except:
-                        pass
+        valid_bills = []
 
-            if annual_bill:
-                break
+        for match in matches:
+            try:
+                amount = money_to_float(match)
+                if amount >= 1000:
+                    valid_bills.append(match.replace(" ", ""))
+            except:
+                pass
 
-        if not annual_bill:
-            matches = re.findall(
-                r"€\s?\d{1,3}(?:,\d{3})?(?:\.\d{2})?",
-                block_text
-            )
-
-            valid_bills = []
-
-            for match in matches:
-                try:
-                    amount = money_to_float(match)
-
-                    if amount >= 1000:
-                        valid_bills.append(match.replace(" ", ""))
-                except:
-                    pass
-
-            if valid_bills:
-                annual_bill = valid_bills[0]
+        if valid_bills:
+            annual_bill = valid_bills[0]
 
         if not annual_bill:
             print(f"Skipped plan without annual bill: {plan}")
@@ -381,7 +369,7 @@ def save_results(results):
 
 
 try:
-    driver.get("https://www.bonkers.ie/compare-gas-electricity-prices/electricity/")
+    driver.get(f"https://www.bonkers.ie/compare-gas-electricity-prices/electricity/?t={int(time.time())}")
     time.sleep(5)
 
     accept_cookies()
