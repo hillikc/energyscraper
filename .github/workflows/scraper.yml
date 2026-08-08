@@ -28,11 +28,12 @@ jobs:
       - name: Run scraper
         run: python scraper.py
 
-      - name: Commit CSV files
+      - name: Commit ranking files
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
           git add energy_rankings.csv
+          git add energy_rankings.md
           git add switcher_history.csv
           git diff --staged --quiet || git commit -m "Update Switcher rankings and history"
           git push
