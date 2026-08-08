@@ -7,7 +7,9 @@ import re
 import os
 
 csv_path = "energy_rankings.csv"
+markdown_path = "energy_rankings.md"
 history_path = "switcher_history.csv"
+
 url = "https://switcher.ie/gas-electricity/comparison/"
 
 options = webdriver.ChromeOptions()
@@ -24,12 +26,23 @@ def click_id(element_id, wait_time=30):
     for _ in range(wait_time):
         try:
             element = driver.find_element(By.ID, element_id)
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+
+            driver.execute_script(
+                "arguments[0].scrollIntoView({block: 'center'});",
+                element
+            )
+
             time.sleep(0.5)
-            driver.execute_script("arguments[0].click();", element)
+
+            driver.execute_script(
+                "arguments[0].click();",
+                element
+            )
+
             time.sleep(0.8)
             return
-        except:
+
+        except Exception:
             time.sleep(1)
 
     raise Exception(f"Could not find element ID: {element_id}")
@@ -61,8 +74,10 @@ def get_annual_bill(lines):
     for i, line in enumerate(lines):
         if "estimated annual bill" in line.lower() and i > 0:
             price = lines[i - 1]
+
             if re.fullmatch(r"€[\d,]+\.\d{2}", price):
                 return price
+
     return ""
 
 
@@ -100,10 +115,51 @@ def get_plan_name(lines):
         if line.startswith("€"):
             continue
 
-        if "electricity" in lower or "energy" in lower or "flogas" in lower or "waterpower" in lower:
+        if (
+            "electricity" in lower
+            or "energy" in lower
+            or "flogas" in lower
+            or "waterpower" in lower
+        ):
             return line
 
     return ""
+
+
+def escape_markdown(value):
+    """
+    Prevent pipe characters in scraped text from breaking the Markdown table.
+    """
+    return str(value).replace("|", "\\|").replace("\n", " ").strip()
+
+
+def create_markdown_table(df):
+    """
+    Creates a bot-friendly Markdown rankings table.
+    """
+    lines = [
+        "| Rank | Supplier | Plan | Estimated Annual Bill | Source | Last Checked |",
+        "|---:|---|---|---:|---|---|"
+    ]
+
+    for _, row in df.iterrows():
+        rank = int(row["Rank"])
+        company = escape_markdown(row["Company"])
+        plan = escape_markdown(row["Plan"])
+        annual_bill = escape_markdown(row["Estimated Annual Bill"])
+        source = escape_markdown(row["Source"])
+        last_checked = escape_markdown(row["Last Checked"])
+
+        lines.append(
+            f"| **{rank}** | "
+            f"{company} | "
+            f"{plan} | "
+            f"**{annual_bill}** | "
+            f"{source} | "
+            f"{last_checked} |"
+        )
+
+    return "\n".join(lines)
 
 
 try:
@@ -117,7 +173,9 @@ try:
     click_id("comparison_electricity_payment_type_direct_debit")
     click_id("comparison_electricity_meter_type_twenty_four_hour")
     click_id("comparison_electricity_bill_type_online")
-    click_id("comparison_electricity_consumption_calculation_type_national_average")
+    click_id(
+        "comparison_electricity_consumption_calculation_type_national_average"
+    )
     click_id("comparison_electricity_search_type_all")
     click_id("comparison_electricity_include_cashback_1")
 
@@ -125,6 +183,7 @@ try:
         By.XPATH,
         "//input[@id='comparison_electricity_current_supplier_prepaypower']/ancestor::form"
     )
+
     driver.execute_script("arguments[0].submit();", form)
 
     time.sleep(12)
@@ -134,7 +193,11 @@ try:
 
     for card in cards:
         try:
-            lines = [line.strip() for line in card.text.splitlines() if line.strip()]
+            lines = [
+                line.strip()
+                for line in card.text.splitlines()
+                if line.strip()
+            ]
 
             annual_bill = get_annual_bill(lines)
             plan_name = get_plan_name(lines)
@@ -167,7 +230,12 @@ try:
         df = df.sort_values("Price Number", ascending=True)
         df = df.drop(columns=["Price Number"])
         df = df.head(8)
-        df.insert(0, "Rank", range(1, len(df) + 1))
+
+        df.insert(
+            0,
+            "Rank",
+            range(1, len(df) + 1)
+        )
 
         df = df[
             [
@@ -179,33 +247,78 @@ try:
                 "Last Checked"
             ]
         ]
+
     else:
-        df = pd.DataFrame(columns=[
-            "Rank",
-            "Company",
-            "Plan",
-            "Estimated Annual Bill",
-            "Source",
-            "Last Checked"
-        ])
+        df = pd.DataFrame(
+            columns=[
+                "Rank",
+                "Company",
+                "Plan",
+                "Estimated Annual Bill",
+                "Source",
+                "Last Checked"
+            ]
+        )
 
-    # Save latest/current Switcher rankings
-    df.to_csv(csv_path, index=False, encoding="utf-8-sig")
+    # -----------------------------
+    # SAVE CURRENT CSV
+    # -----------------------------
 
-    # Append to Switcher history
+    df.to_csv(
+        csv_path,
+        index=False,
+        encoding="utf-8-sig"
+    )
+
+    # -----------------------------
+    # SAVE BOT-FRIENDLY MARKDOWN
+    # -----------------------------
+
+    markdown_table = create_markdown_table(df)
+
+    with open(
+        markdown_path,
+        "w",
+        encoding="utf-8"
+    ) as markdown_file:
+        markdown_file.write(markdown_table)
+
+    # -----------------------------
+    # APPEND HISTORY
+    # -----------------------------
+
     history_df = df.copy()
 
     if os.path.exists(history_path):
         existing_history = pd.read_csv(history_path)
-        combined_history = pd.concat([existing_history, history_df], ignore_index=True)
+
+        combined_history = pd.concat(
+            [existing_history, history_df],
+            ignore_index=True
+        )
+
     else:
         combined_history = history_df
 
-    combined_history.to_csv(history_path, index=False, encoding="utf-8-sig")
+    combined_history.to_csv(
+        history_path,
+        index=False,
+        encoding="utf-8-sig"
+    )
 
     print(df)
-    print(f"Saved latest rankings to {csv_path}")
-    print(f"Appended history to {history_path}")
+
+    print(
+        f"Saved latest rankings to {csv_path}"
+    )
+
+    print(
+        f"Saved bot-friendly rankings to {markdown_path}"
+    )
+
+    print(
+        f"Appended history to {history_path}"
+    )
 
 finally:
     driver.quit()
