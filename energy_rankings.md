@@ -1,10 +1,10 @@
 | Rank | Supplier | Plan | Estimated Annual Bill | Source | Last Checked |
 |---:|---|---|---:|---|---|
-| **1** | Electric Ireland | 1 Year Home Electricity 30% DD & eBill | **€1,492.00** | Switcher.ie | 20/08/2026 10:35 |
-| **2** | SSE Airtricity | EnergySaver 16% | **€1,492.13** | Switcher.ie | 20/08/2026 10:35 |
-| **3** | Yuno Energy will request a Smart Meter from ESB Networks on your behalf when you join | Yuno Energy will request a Smart Meter from ESB Networks on your behalf when you join | **€1,501.90** | Switcher.ie | 20/08/2026 10:35 |
-| **4** | Energia | Energia - Standard Electricity 30% | **€1,538.02** | Switcher.ie | 20/08/2026 10:35 |
-| **5** | Waterpower | Waterpower - Standard Electricity | **€1,585.60** | Switcher.ie | 20/08/2026 10:35 |
-| **6** | Waterpower | Waterpower - Standard Electricity | **€1,605.29** | Switcher.ie | 20/08/2026 10:35 |
-| **7** | Electric Ireland | 1 Year Home Electricity 23% DD & Post | **€1,612.86** | Switcher.ie | 20/08/2026 10:35 |
-| **8** | Flogas | Flogas - Electricity 28% Loyalty Discount | **€1,655.60** | Switcher.ie | 20/08/2026 10:35 |
+| **1** | Electric Ireland | 1 Year Home Electricity 30% DD & eBill | **€1,492.00** | Switcher.ie | 20/08/2026 12:57 |
+| **2** | SSE Airtricity | EnergySaver 16% | **€1,492.13** | Switcher.ie | 20/08/2026 12:57 |
+| **3** | Yuno Energy will request a Smart Meter from ESB Networks on your behalf when you join | Yuno Energy will request a Smart Meter from ESB Networks on your behalf when you join | **€1,501.90** | Switcher.ie | 20/08/2026 12:57 |
+| **4** | Energia | Energia - Standard Electricity 30% | **€1,538.02** | Switcher.ie | 20/08/2026 12:57 |
+| **5** | Waterpower | Waterpower - Standard Electricity | **€1,585.60** | Switcher.ie | 20/08/2026 12:57 |
+| **6** | Waterpower | Waterpower - Standard Electricity | **€1,605.29** | Switcher.ie | 20/08/2026 12:57 |
+| **7** | Electric Ireland | 1 Year Home Electricity 23% DD & Post | **€1,612.86** | Switcher.ie | 20/08/2026 12:57 |
+| **8** | Flogas | Flogas - Electricity 28% Loyalty Discount | **€1,655.60** | Switcher.ie | 20/08/2026 12:57 |
