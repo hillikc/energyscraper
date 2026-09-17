@@ -1,10 +1,10 @@
 | Rank | Supplier | Plan | Estimated Annual Bill | Source | Last Checked |
 |---:|---|---|---:|---|---|
-| **1** | Standard Electricity 30% | Standard Electricity 30% | **€1,538.02** | Switcher.ie | 16/09/2026 22:47 |
-| **2** | Standard Electricity | Standard Electricity | **€1,585.60** | Switcher.ie | 16/09/2026 22:47 |
-| **3** | SSE Airtricity | EnergySaver 16% | **€1,592.13** | Switcher.ie | 16/09/2026 22:47 |
-| **4** | Standard Electricity | Standard Electricity | **€1,605.29** | Switcher.ie | 16/09/2026 22:47 |
-| **5** | Electric Ireland | 1 Year Home Electricity 30% DD & eBill | **€1,615.37** | Switcher.ie | 16/09/2026 22:47 |
-| **6** | Yuno Energy will request a Smart Meter from ESB Networks on your behalf when you join | Yuno Energy will request a Smart Meter from ESB Networks on your behalf when you join | **€1,651.90** | Switcher.ie | 16/09/2026 22:47 |
-| **7** | Electricity 28% Loyalty Discount | Electricity 28% Loyalty Discount | **€1,655.60** | Switcher.ie | 16/09/2026 22:47 |
-| **8** | Electric Ireland | 1 Year Home Electricity 23% DD & Post | **€1,747.08** | Switcher.ie | 16/09/2026 22:47 |
+| **1** | Standard Electricity 30% | Standard Electricity 30% | **€1,538.02** | Switcher.ie | 17/09/2026 04:20 |
+| **2** | Standard Electricity | Standard Electricity | **€1,585.60** | Switcher.ie | 17/09/2026 04:20 |
+| **3** | SSE Airtricity | EnergySaver 16% | **€1,592.13** | Switcher.ie | 17/09/2026 04:20 |
+| **4** | Standard Electricity | Standard Electricity | **€1,605.29** | Switcher.ie | 17/09/2026 04:20 |
+| **5** | Electric Ireland | 1 Year Home Electricity 30% DD & eBill | **€1,615.73** | Switcher.ie | 17/09/2026 04:20 |
+| **6** | Yuno Energy will request a Smart Meter from ESB Networks on your behalf when you join | Yuno Energy will request a Smart Meter from ESB Networks on your behalf when you join | **€1,651.90** | Switcher.ie | 17/09/2026 04:20 |
+| **7** | Electricity 28% Loyalty Discount | Electricity 28% Loyalty Discount | **€1,655.60** | Switcher.ie | 17/09/2026 04:20 |
+| **8** | Electric Ireland | 1 Year Home Electricity 23% DD & Post | **€1,747.47** | Switcher.ie | 17/09/2026 04:20 |
