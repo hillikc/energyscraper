@@ -1,6 +1,7 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
+from selenium.webdriver.support.ui import WebDriverWait
 import pandas as pd
 from datetime import datetime
 import time
@@ -44,6 +45,8 @@ options.add_argument("--disable-dev-shm-usage")
 
 driver = webdriver.Chrome(options=options)
 
+wait = WebDriverWait(driver, 30)
+
 
 # ============================================================
 # CLICK ELEMENT BY ID
@@ -81,6 +84,72 @@ def click_id(element_id, wait_time=30):
 
     raise Exception(
         f"Could not find element ID: {element_id}"
+    )
+
+
+# ============================================================
+# WAIT FOR DROPDOWN OPTION
+# ============================================================
+
+def wait_for_select_option(
+    element_id,
+    visible_text,
+    wait_time=30
+):
+
+    print(
+        f"Waiting for dropdown option: {visible_text}"
+    )
+
+    end_time = time.time() + wait_time
+
+    while time.time() < end_time:
+
+        try:
+
+            element = driver.find_element(
+                By.ID,
+                element_id
+            )
+
+            dropdown = Select(
+                element
+            )
+
+            available_options = [
+                option.text.strip()
+                for option in dropdown.options
+            ]
+
+            print(
+                f"Available options: {available_options}"
+            )
+
+            if visible_text in available_options:
+
+                dropdown.select_by_visible_text(
+                    visible_text
+                )
+
+                print(
+                    f"Selected: {visible_text}"
+                )
+
+                time.sleep(1)
+
+                return
+
+        except Exception as e:
+
+            print(
+                f"Dropdown not ready yet: {e}"
+            )
+
+        time.sleep(1)
+
+    raise Exception(
+        f"Could not find '{visible_text}' "
+        f"in dropdown '{element_id}'"
     )
 
 
@@ -204,7 +273,7 @@ def normalise_supplier(value):
 
 
 # ============================================================
-# GET SUPPLIER FROM LOGO
+# GET SUPPLIER FROM RESULT CARD
 # ============================================================
 
 def get_company_from_card(card):
@@ -387,7 +456,10 @@ def escape_markdown(value):
 # CREATE MARKDOWN TABLE
 # ============================================================
 
-def create_markdown_table(df, tariff_type):
+def create_markdown_table(
+    df,
+    tariff_type
+):
 
     lines = [
 
@@ -435,11 +507,13 @@ def create_markdown_table(df, tariff_type):
 
         )
 
-    return "\n".join(lines)
+    return "\n".join(
+        lines
+    )
 
 
 # ============================================================
-# SET UP COMMON SWITCHER FORM
+# OPEN AND SET UP COMMON FORM
 # ============================================================
 
 def setup_common_form():
@@ -457,10 +531,6 @@ def setup_common_form():
     )
 
 
-    # --------------------------------------------------------
-    # ELECTRICITY
-    # --------------------------------------------------------
-
     print(
         "Selecting electricity..."
     )
@@ -469,10 +539,6 @@ def setup_common_form():
         "switch_electricity"
     )
 
-
-    # --------------------------------------------------------
-    # CURRENT SUPPLIER = PREPAYPOWER
-    # --------------------------------------------------------
 
     print(
         "Selecting PrepayPower..."
@@ -489,10 +555,6 @@ def setup_common_form():
 
 def select_common_result_options():
 
-    # --------------------------------------------------------
-    # NATIONAL AVERAGE USAGE
-    # --------------------------------------------------------
-
     print(
         "Selecting national average usage..."
     )
@@ -502,10 +564,6 @@ def select_common_result_options():
     )
 
 
-    # --------------------------------------------------------
-    # SHOW ALL PLANS
-    # --------------------------------------------------------
-
     print(
         "Selecting all plans..."
     )
@@ -514,10 +572,6 @@ def select_common_result_options():
         "comparison_electricity_search_type_all"
     )
 
-
-    # --------------------------------------------------------
-    # INCLUDE CASHBACK
-    # --------------------------------------------------------
 
     print(
         "Including cashback..."
@@ -557,10 +611,12 @@ def submit_form():
 
 
 # ============================================================
-# READ RESULT CARDS
+# READ RESULTS
 # ============================================================
 
-def read_results(tariff_label):
+def read_results(
+    tariff_label
+):
 
     cards = driver.find_elements(
         By.CSS_SELECTOR,
@@ -609,10 +665,6 @@ def read_results(tariff_label):
                 lines
             )
 
-
-            # ------------------------------------------------
-            # DEBUG
-            # ------------------------------------------------
 
             print("\n")
             print(
@@ -735,7 +787,9 @@ def read_results(tariff_label):
 # BUILD FINAL DATAFRAME
 # ============================================================
 
-def build_dataframe(results):
+def build_dataframe(
+    results
+):
 
     df = pd.DataFrame(
         results
@@ -780,7 +834,7 @@ def build_dataframe(results):
         )
 
 
-        # Remove temporary price
+        # Remove temporary numeric column
         df = df.drop(
             columns=[
                 "Price Number"
@@ -788,19 +842,19 @@ def build_dataframe(results):
         )
 
 
-        # Top 8
+        # Keep top 8
         df = df.head(
             8
         )
 
 
-        # Reset
+        # Reset index
         df = df.reset_index(
             drop=True
         )
 
 
-        # Ranking
+        # Add ranking
         df.insert(
 
             0,
@@ -815,6 +869,7 @@ def build_dataframe(results):
         )
 
 
+        # Final column order
         df = df[
 
             [
@@ -863,7 +918,7 @@ def save_results(
 ):
 
     # --------------------------------------------------------
-    # CURRENT CSV
+    # SAVE CURRENT CSV
     # --------------------------------------------------------
 
     df.to_csv(
@@ -882,7 +937,7 @@ def save_results(
 
 
     # --------------------------------------------------------
-    # MARKDOWN
+    # SAVE MARKDOWN
     # --------------------------------------------------------
 
     markdown_table = create_markdown_table(
@@ -906,13 +961,12 @@ def save_results(
 
 
     print(
-        f"Saved {tariff_label} Markdown to "
-        f"{markdown_path}"
+        f"Saved {tariff_label} Markdown to {markdown_path}"
     )
 
 
     # --------------------------------------------------------
-    # HISTORY
+    # APPEND HISTORY
     # --------------------------------------------------------
 
     history_df = df.copy()
@@ -954,8 +1008,7 @@ def save_results(
 
 
     print(
-        f"Updated {tariff_label} history: "
-        f"{history_path}"
+        f"Updated {tariff_label} history: {history_path}"
     )
 
 
@@ -1021,10 +1074,23 @@ def scrape_24_hour():
     )
 
 
+    # --------------------------------------------------------
+    # COMMON OPTIONS
+    # --------------------------------------------------------
+
     select_common_result_options()
+
+
+    # --------------------------------------------------------
+    # SUBMIT
+    # --------------------------------------------------------
 
     submit_form()
 
+
+    # --------------------------------------------------------
+    # READ + SAVE
+    # --------------------------------------------------------
 
     results = read_results(
         "24 Hour"
@@ -1094,12 +1160,12 @@ def scrape_smart():
     )
 
 
-    # Reload form from scratch
+    # Fresh comparison form
     setup_common_form()
 
 
     # --------------------------------------------------------
-    # SELECT SMART
+    # SMART
     # --------------------------------------------------------
 
     print(
@@ -1110,80 +1176,60 @@ def scrape_smart():
         "comparison_electricity_meter_type_smart"
     )
 
+
+    # Give Switcher's JavaScript a moment to react
     time.sleep(
         2
     )
 
 
     # --------------------------------------------------------
-    # SMART CURRENT TARIFF
-    # Classic Pay Time of Use Tariff
+    # CURRENT SMART TARIFF
     # --------------------------------------------------------
 
     print(
         "Selecting Classic Pay Time of Use Tariff..."
     )
 
-    tariff_select = Select(
+    wait_for_select_option(
 
-        driver.find_element(
+        "comparison_electricity_current_plan",
 
-            By.ID,
+        "Classic Pay Time of Use Tariff",
 
-            "comparison_electricity_current_plan"
+        wait_time=30
 
-        )
-
-    )
-
-    tariff_select.select_by_value(
-        "prepaypower-electricity-smart-classic-pay-time-of-use"
-    )
-
-    time.sleep(
-        1
     )
 
 
     # --------------------------------------------------------
     # SIGNUP DATE
-    # Before October 2025
     # --------------------------------------------------------
 
     print(
         "Selecting Before October 2025..."
     )
 
-    signup_select = Select(
+    wait_for_select_option(
 
-        driver.find_element(
+        "comparison_electricity_signup_date",
 
-            By.ID,
+        "Before October 2025",
 
-            "comparison_electricity_signup_date"
+        wait_time=30
 
-        )
-
-    )
-
-    signup_select.select_by_value(
-        "2025-09-01"
-    )
-
-    time.sleep(
-        1
     )
 
 
     # --------------------------------------------------------
-    # NATIONAL AVERAGE / ALL PLANS / CASHBACK
+    # COMMON OPTIONS
     # --------------------------------------------------------
 
     select_common_result_options()
 
 
     # --------------------------------------------------------
-    # SUBMIT SMART COMPARISON
+    # SUBMIT SMART FORM
     # --------------------------------------------------------
 
     submit_form()
@@ -1204,7 +1250,7 @@ def scrape_smart():
 
 
     # --------------------------------------------------------
-    # SAVE SMART FILES
+    # SAVE SMART RESULTS
     # --------------------------------------------------------
 
     save_results(
@@ -1247,17 +1293,28 @@ def scrape_smart():
 
 
 # ============================================================
-# RUN BOTH COMPARISONS
+# RUN BOTH
 # ============================================================
 
 try:
 
-    # Existing 24 Hour rankings
+    # --------------------------------------------------------
+    # EXISTING 24 HOUR RANKINGS
+    # --------------------------------------------------------
+
     scrape_24_hour()
 
-    # New Smart rankings
+
+    # --------------------------------------------------------
+    # NEW SMART RANKINGS
+    # --------------------------------------------------------
+
     scrape_smart()
 
+
+    # --------------------------------------------------------
+    # FINISHED
+    # --------------------------------------------------------
 
     print("\n")
     print(
@@ -1272,9 +1329,11 @@ try:
         "#" * 80
     )
 
+
     print(
         "\nGenerated files:"
     )
+
 
     print(
         f"24 Hour Markdown: {HOUR24_MARKDOWN}"
@@ -1287,6 +1346,7 @@ try:
     print(
         f"24 Hour History: {HOUR24_HISTORY}"
     )
+
 
     print(
         f"Smart Markdown: {SMART_MARKDOWN}"
