@@ -6,11 +6,20 @@ import time
 import re
 import os
 
+# ============================================================
+# FILES
+# ============================================================
+
 csv_path = "energy_rankings.csv"
 markdown_path = "energy_rankings.md"
 history_path = "switcher_history.csv"
 
 url = "https://switcher.ie/gas-electricity/comparison/"
+
+
+# ============================================================
+# SELENIUM SETUP
+# ============================================================
 
 options = webdriver.ChromeOptions()
 options.add_argument("--headless=new")
@@ -21,6 +30,10 @@ options.add_argument("--disable-dev-shm-usage")
 
 driver = webdriver.Chrome(options=options)
 
+
+# ============================================================
+# HELPER - CLICK ELEMENT BY ID
+# ============================================================
 
 def click_id(element_id, wait_time=30):
     for _ in range(wait_time):
@@ -48,32 +61,64 @@ def click_id(element_id, wait_time=30):
     raise Exception(f"Could not find element ID: {element_id}")
 
 
-def get_company(plan_name):
-    mappings = {
-        "EnergySaver": "SSE Airtricity",
-        "1 Year Electricity Variable Plan": "Yuno Energy",
-        "New Elec Only": "Bord Gáis Energy",
-        "1 Year Home Electricity": "Electric Ireland",
-        "Green Electricity": "Electric Ireland",
-        "Flogas": "Flogas",
-        "Energia": "Energia",
-        "Waterpower": "Waterpower",
-        "Community Power": "Community Power",
-        "Ecopower": "Ecopower",
-        "Pinergy": "Pinergy",
-    }
+# ============================================================
+# KNOWN IRISH ENERGY SUPPLIERS
+# ============================================================
 
-    for key, company in mappings.items():
-        if key.lower() in plan_name.lower():
-            return company
+SUPPLIERS = [
+    "PrepayPower",
+    "Yuno Energy",
+    "SSE Airtricity",
+    "Electric Ireland",
+    "Bord Gáis Energy",
+    "Bord Gais Energy",
+    "Energia",
+    "Flogas",
+    "Pinergy",
+    "Waterpower",
+    "Community Power",
+    "Ecopower",
+]
 
-    return plan_name.split(" - ")[0]
 
+# ============================================================
+# DETECT SUPPLIER
+# ============================================================
+
+def get_company(lines):
+    """
+    Detect the supplier from all text contained in the result card.
+    This prevents plan descriptions from being treated as suppliers.
+    """
+
+    full_text = " ".join(lines).lower()
+
+    for supplier in SUPPLIERS:
+        if supplier.lower() in full_text:
+
+            # Normalise Bord Gais spelling
+            if supplier == "Bord Gais Energy":
+                return "Bord Gáis Energy"
+
+            return supplier
+
+    return "Unknown"
+
+
+# ============================================================
+# GET ESTIMATED ANNUAL BILL
+# ============================================================
 
 def get_annual_bill(lines):
+    """
+    Find the price directly before 'Estimated Annual Bill'.
+    """
+
     for i, line in enumerate(lines):
+
         if "estimated annual bill" in line.lower() and i > 0:
-            price = lines[i - 1]
+
+            price = lines[i - 1].strip()
 
             if re.fullmatch(r"€[\d,]+\.\d{2}", price):
                 return price
@@ -81,7 +126,16 @@ def get_annual_bill(lines):
     return ""
 
 
-def get_plan_name(lines):
+# ============================================================
+# GET PLAN NAME
+# ============================================================
+
+def get_plan_name(lines, company):
+    """
+    Attempts to identify the actual tariff/plan name while
+    ignoring descriptions, discounts and account information.
+    """
+
     banned = [
         "direct debit",
         "credit/debit card",
@@ -100,55 +154,122 @@ def get_plan_name(lines):
         "not available through switcher.ie",
         "plan info",
         "switch now",
-        "green electricity",
         "cashback not included",
         "you save",
         "welcome bonus",
+        "loyalty discount",
+        "smart meter",
+        "esb networks",
+        "on your behalf",
+        "when you join",
+        "standard electricity 30%",
+        "standard electricity",
     ]
 
+    candidates = []
+
     for line in lines:
+
+        line = line.strip()
         lower = line.lower()
 
-        if any(b in lower for b in banned):
+        if not line:
+            continue
+
+        # Ignore supplier itself
+        if company != "Unknown" and lower == company.lower():
+            continue
+
+        # Ignore unwanted descriptive text
+        if any(item in lower for item in banned):
+            continue
+
+        # Ignore prices
+        if re.fullmatch(r"€[\d,]+\.\d{2}", line):
             continue
 
         if line.startswith("€"):
             continue
 
-        if (
-            "electricity" in lower
-            or "energy" in lower
-            or "flogas" in lower
-            or "waterpower" in lower
-        ):
-            return line
+        # Ignore standalone percentages
+        if re.fullmatch(r"\d+%", line):
+            continue
 
-    return ""
+        # Likely plan names
+        plan_words = [
+            "energysaver",
+            "electricity",
+            "elec",
+            "home",
+            "green",
+            "smart",
+            "variable",
+        ]
 
+        if any(word in lower for word in plan_words):
+            candidates.append(line)
+
+    if candidates:
+        return candidates[0]
+
+    return "Unknown Plan"
+
+
+# ============================================================
+# MARKDOWN CLEANUP
+# ============================================================
 
 def escape_markdown(value):
     """
-    Prevent pipe characters in scraped text from breaking the Markdown table.
+    Prevent pipe characters or newlines from breaking
+    the Markdown table.
     """
-    return str(value).replace("|", "\\|").replace("\n", " ").strip()
 
+    return (
+        str(value)
+        .replace("|", "\\|")
+        .replace("\n", " ")
+        .strip()
+    )
+
+
+# ============================================================
+# CREATE MARKDOWN TABLE
+# ============================================================
 
 def create_markdown_table(df):
     """
-    Creates a bot-friendly Markdown rankings table.
+    Creates the bot-friendly Markdown rankings table.
     """
+
     lines = [
         "| Rank | Supplier | Plan | Estimated Annual Bill | Source | Last Checked |",
         "|---:|---|---|---:|---|---|"
     ]
 
     for _, row in df.iterrows():
+
         rank = int(row["Rank"])
-        company = escape_markdown(row["Company"])
-        plan = escape_markdown(row["Plan"])
-        annual_bill = escape_markdown(row["Estimated Annual Bill"])
-        source = escape_markdown(row["Source"])
-        last_checked = escape_markdown(row["Last Checked"])
+
+        company = escape_markdown(
+            row["Company"]
+        )
+
+        plan = escape_markdown(
+            row["Plan"]
+        )
+
+        annual_bill = escape_markdown(
+            row["Estimated Annual Bill"]
+        )
+
+        source = escape_markdown(
+            row["Source"]
+        )
+
+        last_checked = escape_markdown(
+            row["Last Checked"]
+        )
 
         lines.append(
             f"| **{rank}** | "
@@ -162,81 +283,263 @@ def create_markdown_table(df):
     return "\n".join(lines)
 
 
+# ============================================================
+# MAIN SCRAPER
+# ============================================================
+
 try:
-    checked_time = datetime.now().strftime("%d/%m/%Y %H:%M")
+
+    checked_time = datetime.now().strftime(
+        "%d/%m/%Y %H:%M"
+    )
+
+    print("Opening Switcher.ie...")
 
     driver.get(url)
+
     time.sleep(12)
 
-    click_id("switch_electricity")
-    click_id("comparison_electricity_current_supplier_prepaypower")
-    click_id("comparison_electricity_payment_type_direct_debit")
-    click_id("comparison_electricity_meter_type_twenty_four_hour")
-    click_id("comparison_electricity_bill_type_online")
+
+    # ========================================================
+    # COMPLETE SWITCHER FORM
+    # ========================================================
+
+    print("Selecting electricity...")
+
+    click_id(
+        "switch_electricity"
+    )
+
+    print("Selecting PrepayPower...")
+
+    click_id(
+        "comparison_electricity_current_supplier_prepaypower"
+    )
+
+    print("Selecting Direct Debit...")
+
+    click_id(
+        "comparison_electricity_payment_type_direct_debit"
+    )
+
+    print("Selecting 24 hour meter...")
+
+    click_id(
+        "comparison_electricity_meter_type_twenty_four_hour"
+    )
+
+    print("Selecting online billing...")
+
+    click_id(
+        "comparison_electricity_bill_type_online"
+    )
+
+    print("Selecting national average usage...")
+
     click_id(
         "comparison_electricity_consumption_calculation_type_national_average"
     )
-    click_id("comparison_electricity_search_type_all")
-    click_id("comparison_electricity_include_cashback_1")
+
+    print("Selecting all plans...")
+
+    click_id(
+        "comparison_electricity_search_type_all"
+    )
+
+    print("Including cashback...")
+
+    click_id(
+        "comparison_electricity_include_cashback_1"
+    )
+
+
+    # ========================================================
+    # SUBMIT FORM
+    # ========================================================
+
+    print("Submitting comparison...")
 
     form = driver.find_element(
         By.XPATH,
         "//input[@id='comparison_electricity_current_supplier_prepaypower']/ancestor::form"
     )
 
-    driver.execute_script("arguments[0].submit();", form)
+    driver.execute_script(
+        "arguments[0].submit();",
+        form
+    )
 
     time.sleep(12)
 
-    cards = driver.find_elements(By.CSS_SELECTOR, ".c-result-row")
+
+    # ========================================================
+    # GET RESULT CARDS
+    # ========================================================
+
+    cards = driver.find_elements(
+        By.CSS_SELECTOR,
+        ".c-result-row"
+    )
+
+    print(
+        f"Found {len(cards)} Switcher result cards."
+    )
+
     results = []
 
-    for card in cards:
+
+    # ========================================================
+    # READ EACH RESULT
+    # ========================================================
+
+    for card_number, card in enumerate(cards, start=1):
+
         try:
+
             lines = [
                 line.strip()
                 for line in card.text.splitlines()
                 if line.strip()
             ]
 
-            annual_bill = get_annual_bill(lines)
-            plan_name = get_plan_name(lines)
+            # Debug output
+            print("\n")
+            print("=" * 80)
+            print(
+                f"RESULT CARD {card_number}"
+            )
+            print("=" * 80)
 
-            if not annual_bill or not plan_name:
+            for line in lines:
+                print(line)
+
+            print("=" * 80)
+
+
+            # Extract information
+            annual_bill = get_annual_bill(
+                lines
+            )
+
+            company = get_company(
+                lines
+            )
+
+            plan_name = get_plan_name(
+                lines,
+                company
+            )
+
+
+            print(
+                f"Detected supplier: {company}"
+            )
+
+            print(
+                f"Detected plan: {plan_name}"
+            )
+
+            print(
+                f"Detected annual bill: {annual_bill}"
+            )
+
+
+            # Skip cards where no valid price exists
+            if not annual_bill:
+                print(
+                    "Skipped - no annual bill detected."
+                )
                 continue
 
+
             results.append({
-                "Company": get_company(plan_name),
+                "Company": company,
                 "Plan": plan_name,
                 "Estimated Annual Bill": annual_bill,
                 "Source": "Switcher.ie",
                 "Last Checked": checked_time
             })
 
-        except Exception as e:
-            print("Skipped card:", e)
 
-    df = pd.DataFrame(results)
+        except Exception as e:
+
+            print(
+                f"Skipped card {card_number}: {e}"
+            )
+
+
+    # ========================================================
+    # CREATE DATAFRAME
+    # ========================================================
+
+    df = pd.DataFrame(
+        results
+    )
+
+
+    # ========================================================
+    # SORT BY PRICE
+    # ========================================================
 
     if not df.empty:
+
         df["Price Number"] = (
             df["Estimated Annual Bill"]
-            .str.replace("€", "", regex=False)
-            .str.replace(",", "", regex=False)
+            .str.replace(
+                "€",
+                "",
+                regex=False
+            )
+            .str.replace(
+                ",",
+                "",
+                regex=False
+            )
             .astype(float)
         )
 
-        df = df[df["Price Number"] > 500]
-        df = df.sort_values("Price Number", ascending=True)
-        df = df.drop(columns=["Price Number"])
+
+        # Ignore obviously incorrect prices
+        df = df[
+            df["Price Number"] > 500
+        ]
+
+
+        # Cheapest first
+        df = df.sort_values(
+            "Price Number",
+            ascending=True
+        )
+
+
+        # Remove temporary numeric column
+        df = df.drop(
+            columns=["Price Number"]
+        )
+
+
+        # Keep top 8
         df = df.head(8)
 
+
+        # Reset row numbers
+        df = df.reset_index(
+            drop=True
+        )
+
+
+        # Add ranking
         df.insert(
             0,
             "Rank",
-            range(1, len(df) + 1)
+            range(
+                1,
+                len(df) + 1
+            )
         )
 
+
+        # Final column order
         df = df[
             [
                 "Rank",
@@ -248,7 +551,9 @@ try:
             ]
         ]
 
+
     else:
+
         df = pd.DataFrame(
             columns=[
                 "Rank",
@@ -260,9 +565,10 @@ try:
             ]
         )
 
-    # -----------------------------
+
+    # ========================================================
     # SAVE CURRENT CSV
-    # -----------------------------
+    # ========================================================
 
     df.to_csv(
         csv_path,
@@ -270,35 +576,61 @@ try:
         encoding="utf-8-sig"
     )
 
-    # -----------------------------
-    # SAVE BOT-FRIENDLY MARKDOWN
-    # -----------------------------
+    print(
+        f"\nSaved latest rankings to {csv_path}"
+    )
 
-    markdown_table = create_markdown_table(df)
+
+    # ========================================================
+    # SAVE BOT-FRIENDLY MARKDOWN
+    # ========================================================
+
+    markdown_table = create_markdown_table(
+        df
+    )
 
     with open(
         markdown_path,
         "w",
         encoding="utf-8"
     ) as markdown_file:
-        markdown_file.write(markdown_table)
 
-    # -----------------------------
+        markdown_file.write(
+            markdown_table
+        )
+
+    print(
+        f"Saved bot-friendly rankings to {markdown_path}"
+    )
+
+
+    # ========================================================
     # APPEND HISTORY
-    # -----------------------------
+    # ========================================================
 
     history_df = df.copy()
 
-    if os.path.exists(history_path):
-        existing_history = pd.read_csv(history_path)
+
+    if os.path.exists(
+        history_path
+    ):
+
+        existing_history = pd.read_csv(
+            history_path
+        )
 
         combined_history = pd.concat(
-            [existing_history, history_df],
+            [
+                existing_history,
+                history_df
+            ],
             ignore_index=True
         )
 
     else:
+
         combined_history = history_df
+
 
     combined_history.to_csv(
         history_path,
@@ -306,19 +638,37 @@ try:
         encoding="utf-8-sig"
     )
 
-    print(df)
-
-    print(
-        f"Saved latest rankings to {csv_path}"
-    )
-
-    print(
-        f"Saved bot-friendly rankings to {markdown_path}"
-    )
-
     print(
         f"Appended history to {history_path}"
     )
 
+
+    # ========================================================
+    # PRINT FINAL RANKINGS
+    # ========================================================
+
+    print("\n")
+    print("=" * 80)
+    print("FINAL ENERGY RANKINGS")
+    print("=" * 80)
+
+    print(
+        df.to_string(
+            index=False
+        )
+    )
+
+    print("=" * 80)
+
+
+# ============================================================
+# ALWAYS CLOSE CHROME
+# ============================================================
+
 finally:
+
     driver.quit()
+
+    print(
+        "\nChrome closed."
+    )
