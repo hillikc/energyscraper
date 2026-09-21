@@ -32,8 +32,16 @@ jobs:
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
+
+          # 24 Hour rankings
           git add energy_rankings.csv
           git add energy_rankings.md
           git add switcher_history.csv
-          git diff --staged --quiet || git commit -m "Update Switcher rankings and history"
+
+          # Smart rankings
+          git add smart_energy_rankings.csv
+          git add smart_energy_rankings.md
+          git add switcher_smart_history.csv
+
+          git diff --staged --quiet || git commit -m "Update Switcher 24H and Smart rankings"
           git push
