@@ -1,20 +1,33 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import Select
 import pandas as pd
 from datetime import datetime
 import time
 import re
 import os
 
+
 # ============================================================
-# FILE PATHS
+# SWITCHER
 # ============================================================
 
-csv_path = "energy_rankings.csv"
-markdown_path = "energy_rankings.md"
-history_path = "switcher_history.csv"
+URL = "https://switcher.ie/gas-electricity/comparison/"
 
-url = "https://switcher.ie/gas-electricity/comparison/"
+
+# ============================================================
+# OUTPUT FILES
+# ============================================================
+
+# 24 HOUR
+HOUR24_CSV = "energy_rankings.csv"
+HOUR24_MARKDOWN = "energy_rankings.md"
+HOUR24_HISTORY = "switcher_history.csv"
+
+# SMART
+SMART_CSV = "smart_energy_rankings.csv"
+SMART_MARKDOWN = "smart_energy_rankings.md"
+SMART_HISTORY = "switcher_smart_history.csv"
 
 
 # ============================================================
@@ -72,7 +85,7 @@ def click_id(element_id, wait_time=30):
 
 
 # ============================================================
-# NORMALISE SUPPLIER NAME
+# NORMALISE SUPPLIER
 # ============================================================
 
 def normalise_supplier(value):
@@ -86,27 +99,52 @@ def normalise_supplier(value):
     supplier_checks = [
 
         (
-            ["electric ireland", "electric-ireland", "electric_ireland"],
+            [
+                "electric ireland",
+                "electric-ireland",
+                "electric_ireland"
+            ],
             "Electric Ireland"
         ),
 
         (
-            ["sse airtricity", "airtricity", "sse-airtricity", "sse_airtricity"],
+            [
+                "sse airtricity",
+                "airtricity",
+                "sse-airtricity",
+                "sse_airtricity"
+            ],
             "SSE Airtricity"
         ),
 
         (
-            ["bord gáis", "bord gais", "bord-gais", "bord_gais", "bordgais"],
+            [
+                "bord gáis",
+                "bord gais",
+                "bord-gais",
+                "bord_gais",
+                "bordgais"
+            ],
             "Bord Gáis Energy"
         ),
 
         (
-            ["yuno energy", "yuno-energy", "yuno_energy", "yuno"],
+            [
+                "yuno energy",
+                "yuno-energy",
+                "yuno_energy",
+                "yuno"
+            ],
             "Yuno Energy"
         ),
 
         (
-            ["prepaypower", "prepay power", "prepay-power", "prepay_power"],
+            [
+                "prepaypower",
+                "prepay power",
+                "prepay-power",
+                "prepay_power"
+            ],
             "PrepayPower"
         ),
 
@@ -126,17 +164,31 @@ def normalise_supplier(value):
         ),
 
         (
-            ["waterpower", "water power", "water-power", "water_power"],
+            [
+                "waterpower",
+                "water power",
+                "water-power",
+                "water_power"
+            ],
             "Waterpower"
         ),
 
         (
-            ["community power", "community-power", "community_power"],
+            [
+                "community power",
+                "community-power",
+                "community_power"
+            ],
             "Community Power"
         ),
 
         (
-            ["ecopower", "eco power", "eco-power", "eco_power"],
+            [
+                "ecopower",
+                "eco power",
+                "eco-power",
+                "eco_power"
+            ],
             "Ecopower"
         ),
     ]
@@ -157,19 +209,9 @@ def normalise_supplier(value):
 
 def get_company_from_card(card):
 
-    """
-    Switcher appears to display the supplier as a logo rather
-    than normal visible text.
-
-    Search all images inside the result card and inspect:
-    - alt
-    - title
-    - src
-    - data-src
-    - aria-label
-
-    We also inspect links/classes as fallbacks.
-    """
+    # --------------------------------------------------------
+    # CHECK IMAGES
+    # --------------------------------------------------------
 
     try:
 
@@ -181,12 +223,14 @@ def get_company_from_card(card):
         for image in images:
 
             attributes = [
+
                 image.get_attribute("alt"),
                 image.get_attribute("title"),
                 image.get_attribute("src"),
                 image.get_attribute("data-src"),
                 image.get_attribute("aria-label"),
                 image.get_attribute("class"),
+
             ]
 
             for attribute in attributes:
@@ -219,10 +263,12 @@ def get_company_from_card(card):
         for link in links:
 
             attributes = [
+
                 link.get_attribute("href"),
                 link.get_attribute("title"),
                 link.get_attribute("aria-label"),
                 link.get_attribute("class"),
+
             ]
 
             for attribute in attributes:
@@ -291,11 +337,6 @@ def get_company_from_card(card):
 
 def get_plan_name(lines):
 
-    """
-    Current Switcher result cards put the actual tariff
-    name on the first visible line.
-    """
-
     if not lines:
         return "Unknown Plan"
 
@@ -307,11 +348,6 @@ def get_plan_name(lines):
 # ============================================================
 
 def get_annual_bill(lines):
-
-    """
-    Find the euro price directly before
-    'Estimated annual bill'.
-    """
 
     for i, line in enumerate(lines):
 
@@ -327,6 +363,7 @@ def get_annual_bill(lines):
                 r"€[\d,]+\.\d{2}",
                 price
             ):
+
                 return price
 
     return ""
@@ -350,13 +387,15 @@ def escape_markdown(value):
 # CREATE MARKDOWN TABLE
 # ============================================================
 
-def create_markdown_table(df):
+def create_markdown_table(df, tariff_type):
 
     lines = [
 
+        f"## Switcher.ie Electricity Rankings — {tariff_type}",
+        "",
         "| Rank | Supplier | Plan | Estimated Annual Bill | Source | Last Checked |",
-
         "|---:|---|---|---:|---|---|"
+
     ]
 
     for _, row in df.iterrows():
@@ -396,32 +435,21 @@ def create_markdown_table(df):
 
         )
 
-    return "\n".join(
-        lines
-    )
+    return "\n".join(lines)
 
 
 # ============================================================
-# MAIN SCRAPER
+# SET UP COMMON SWITCHER FORM
 # ============================================================
 
-try:
-
-    checked_time = datetime.now().strftime(
-        "%d/%m/%Y %H:%M"
-    )
-
-
-    # --------------------------------------------------------
-    # OPEN SWITCHER
-    # --------------------------------------------------------
+def setup_common_form():
 
     print(
         "Opening Switcher.ie..."
     )
 
     driver.get(
-        url
+        URL
     )
 
     time.sleep(
@@ -430,7 +458,7 @@ try:
 
 
     # --------------------------------------------------------
-    # COMPLETE COMPARISON FORM
+    # ELECTRICITY
     # --------------------------------------------------------
 
     print(
@@ -442,6 +470,10 @@ try:
     )
 
 
+    # --------------------------------------------------------
+    # CURRENT SUPPLIER = PREPAYPOWER
+    # --------------------------------------------------------
+
     print(
         "Selecting PrepayPower..."
     )
@@ -451,32 +483,15 @@ try:
     )
 
 
-    print(
-        "Selecting Direct Debit..."
-    )
+# ============================================================
+# SELECT COMMON RESULT OPTIONS
+# ============================================================
 
-    click_id(
-        "comparison_electricity_payment_type_direct_debit"
-    )
+def select_common_result_options():
 
-
-    print(
-        "Selecting 24 hour meter..."
-    )
-
-    click_id(
-        "comparison_electricity_meter_type_twenty_four_hour"
-    )
-
-
-    print(
-        "Selecting online billing..."
-    )
-
-    click_id(
-        "comparison_electricity_bill_type_online"
-    )
-
+    # --------------------------------------------------------
+    # NATIONAL AVERAGE USAGE
+    # --------------------------------------------------------
 
     print(
         "Selecting national average usage..."
@@ -487,6 +502,10 @@ try:
     )
 
 
+    # --------------------------------------------------------
+    # SHOW ALL PLANS
+    # --------------------------------------------------------
+
     print(
         "Selecting all plans..."
     )
@@ -495,6 +514,10 @@ try:
         "comparison_electricity_search_type_all"
     )
 
+
+    # --------------------------------------------------------
+    # INCLUDE CASHBACK
+    # --------------------------------------------------------
 
     print(
         "Including cashback..."
@@ -505,9 +528,11 @@ try:
     )
 
 
-    # --------------------------------------------------------
-    # SUBMIT FORM
-    # --------------------------------------------------------
+# ============================================================
+# SUBMIT SWITCHER FORM
+# ============================================================
+
+def submit_form():
 
     print(
         "Submitting comparison..."
@@ -531,9 +556,11 @@ try:
     )
 
 
-    # --------------------------------------------------------
-    # GET RESULT CARDS
-    # --------------------------------------------------------
+# ============================================================
+# READ RESULT CARDS
+# ============================================================
+
+def read_results(tariff_label):
 
     cards = driver.find_elements(
         By.CSS_SELECTOR,
@@ -541,15 +568,16 @@ try:
     )
 
     print(
+        f"\n{tariff_label}: "
         f"Found {len(cards)} result cards."
     )
 
     results = []
 
+    checked_time = datetime.now().strftime(
+        "%d/%m/%Y %H:%M"
+    )
 
-    # --------------------------------------------------------
-    # READ EACH CARD
-    # --------------------------------------------------------
 
     for card_number, card in enumerate(
         cards,
@@ -569,10 +597,6 @@ try:
             ]
 
 
-            # ------------------------------------------------
-            # EXTRACT DATA
-            # ------------------------------------------------
-
             plan_name = get_plan_name(
                 lines
             )
@@ -587,7 +611,7 @@ try:
 
 
             # ------------------------------------------------
-            # DEBUG OUTPUT
+            # DEBUG
             # ------------------------------------------------
 
             print("\n")
@@ -596,7 +620,7 @@ try:
             )
 
             print(
-                f"RESULT CARD {card_number}"
+                f"{tariff_label} RESULT CARD {card_number}"
             )
 
             print(
@@ -616,7 +640,6 @@ try:
             )
 
 
-            # Print logo information too
             try:
 
                 images = card.find_elements(
@@ -669,10 +692,6 @@ try:
             )
 
 
-            # ------------------------------------------------
-            # SKIP INVALID RESULT
-            # ------------------------------------------------
-
             if not annual_bill:
 
                 print(
@@ -681,10 +700,6 @@ try:
 
                 continue
 
-
-            # ------------------------------------------------
-            # SAVE RESULT
-            # ------------------------------------------------
 
             results.append({
 
@@ -713,18 +728,19 @@ try:
             )
 
 
-    # ========================================================
-    # CREATE DATAFRAME
-    # ========================================================
+    return results
+
+
+# ============================================================
+# BUILD FINAL DATAFRAME
+# ============================================================
+
+def build_dataframe(results):
 
     df = pd.DataFrame(
         results
     )
 
-
-    # ========================================================
-    # CLEAN AND SORT
-    # ========================================================
 
     if not df.empty:
 
@@ -751,29 +767,20 @@ try:
         )
 
 
-        # ----------------------------------------------------
-        # REMOVE OBVIOUSLY INVALID PRICES
-        # ----------------------------------------------------
-
+        # Remove obviously invalid prices
         df = df[
             df["Price Number"] > 500
         ]
 
 
-        # ----------------------------------------------------
-        # CHEAPEST FIRST
-        # ----------------------------------------------------
-
+        # Cheapest first
         df = df.sort_values(
             "Price Number",
             ascending=True
         )
 
 
-        # ----------------------------------------------------
-        # REMOVE TEMP PRICE COLUMN
-        # ----------------------------------------------------
-
+        # Remove temporary price
         df = df.drop(
             columns=[
                 "Price Number"
@@ -781,28 +788,19 @@ try:
         )
 
 
-        # ----------------------------------------------------
-        # KEEP TOP 8
-        # ----------------------------------------------------
-
+        # Top 8
         df = df.head(
             8
         )
 
 
-        # ----------------------------------------------------
-        # RESET INDEX
-        # ----------------------------------------------------
-
+        # Reset
         df = df.reset_index(
             drop=True
         )
 
 
-        # ----------------------------------------------------
-        # ADD RANK
-        # ----------------------------------------------------
-
+        # Ranking
         df.insert(
 
             0,
@@ -816,10 +814,6 @@ try:
 
         )
 
-
-        # ----------------------------------------------------
-        # FINAL COLUMN ORDER
-        # ----------------------------------------------------
 
         df = df[
 
@@ -853,9 +847,24 @@ try:
         )
 
 
-    # ========================================================
-    # SAVE CURRENT CSV
-    # ========================================================
+    return df
+
+
+# ============================================================
+# SAVE RESULTS
+# ============================================================
+
+def save_results(
+    df,
+    csv_path,
+    markdown_path,
+    history_path,
+    tariff_label
+):
+
+    # --------------------------------------------------------
+    # CURRENT CSV
+    # --------------------------------------------------------
 
     df.to_csv(
 
@@ -868,16 +877,17 @@ try:
     )
 
     print(
-        f"\nSaved latest rankings to {csv_path}"
+        f"Saved {tariff_label} rankings to {csv_path}"
     )
 
 
-    # ========================================================
-    # SAVE MARKDOWN
-    # ========================================================
+    # --------------------------------------------------------
+    # MARKDOWN
+    # --------------------------------------------------------
 
     markdown_table = create_markdown_table(
-        df
+        df,
+        tariff_label
     )
 
     with open(
@@ -896,13 +906,14 @@ try:
 
 
     print(
-        f"Saved bot-friendly rankings to {markdown_path}"
+        f"Saved {tariff_label} Markdown to "
+        f"{markdown_path}"
     )
 
 
-    # ========================================================
-    # APPEND HISTORY
-    # ========================================================
+    # --------------------------------------------------------
+    # HISTORY
+    # --------------------------------------------------------
 
     history_df = df.copy()
 
@@ -943,13 +954,101 @@ try:
 
 
     print(
-        f"Appended history to {history_path}"
+        f"Updated {tariff_label} history: "
+        f"{history_path}"
     )
 
 
-    # ========================================================
-    # FINAL OUTPUT
-    # ========================================================
+# ============================================================
+# 24 HOUR SCRAPE
+# ============================================================
+
+def scrape_24_hour():
+
+    print("\n")
+    print(
+        "#" * 80
+    )
+
+    print(
+        "STARTING 24 HOUR SWITCHER SCRAPE"
+    )
+
+    print(
+        "#" * 80
+    )
+
+
+    setup_common_form()
+
+
+    # --------------------------------------------------------
+    # DIRECT DEBIT
+    # --------------------------------------------------------
+
+    print(
+        "Selecting Direct Debit..."
+    )
+
+    click_id(
+        "comparison_electricity_payment_type_direct_debit"
+    )
+
+
+    # --------------------------------------------------------
+    # 24 HOUR
+    # --------------------------------------------------------
+
+    print(
+        "Selecting 24 Hour tariff..."
+    )
+
+    click_id(
+        "comparison_electricity_meter_type_twenty_four_hour"
+    )
+
+
+    # --------------------------------------------------------
+    # ONLINE BILLING
+    # --------------------------------------------------------
+
+    print(
+        "Selecting online billing..."
+    )
+
+    click_id(
+        "comparison_electricity_bill_type_online"
+    )
+
+
+    select_common_result_options()
+
+    submit_form()
+
+
+    results = read_results(
+        "24 Hour"
+    )
+
+    df = build_dataframe(
+        results
+    )
+
+
+    save_results(
+
+        df,
+
+        HOUR24_CSV,
+
+        HOUR24_MARKDOWN,
+
+        HOUR24_HISTORY,
+
+        "24 Hour"
+
+    )
+
 
     print("\n")
     print(
@@ -957,7 +1056,17 @@ try:
     )
 
     print(
-        "FINAL ENERGY RANKINGS"
+        "FINAL 24 HOUR RANKINGS"
+    )
+
+    print(
+        "=" * 80
+    )
+
+    print(
+        df.to_string(
+            index=False
+        )
     )
 
     print(
@@ -965,17 +1074,230 @@ try:
     )
 
 
-    print(
+# ============================================================
+# SMART SCRAPE
+# ============================================================
 
-        df.to_string(
-            index=False
+def scrape_smart():
+
+    print("\n")
+    print(
+        "#" * 80
+    )
+
+    print(
+        "STARTING SMART SWITCHER SCRAPE"
+    )
+
+    print(
+        "#" * 80
+    )
+
+
+    # Reload form from scratch
+    setup_common_form()
+
+
+    # --------------------------------------------------------
+    # SELECT SMART
+    # --------------------------------------------------------
+
+    print(
+        "Selecting Smart tariff..."
+    )
+
+    click_id(
+        "comparison_electricity_meter_type_smart"
+    )
+
+    time.sleep(
+        2
+    )
+
+
+    # --------------------------------------------------------
+    # SMART CURRENT TARIFF
+    # Classic Pay Time of Use Tariff
+    # --------------------------------------------------------
+
+    print(
+        "Selecting Classic Pay Time of Use Tariff..."
+    )
+
+    tariff_select = Select(
+
+        driver.find_element(
+
+            By.ID,
+
+            "comparison_electricity_current_plan"
+
         )
 
     )
 
+    tariff_select.select_by_value(
+        "prepaypower-electricity-smart-classic-pay-time-of-use"
+    )
+
+    time.sleep(
+        1
+    )
+
+
+    # --------------------------------------------------------
+    # SIGNUP DATE
+    # Before October 2025
+    # --------------------------------------------------------
+
+    print(
+        "Selecting Before October 2025..."
+    )
+
+    signup_select = Select(
+
+        driver.find_element(
+
+            By.ID,
+
+            "comparison_electricity_signup_date"
+
+        )
+
+    )
+
+    signup_select.select_by_value(
+        "2025-09-01"
+    )
+
+    time.sleep(
+        1
+    )
+
+
+    # --------------------------------------------------------
+    # NATIONAL AVERAGE / ALL PLANS / CASHBACK
+    # --------------------------------------------------------
+
+    select_common_result_options()
+
+
+    # --------------------------------------------------------
+    # SUBMIT SMART COMPARISON
+    # --------------------------------------------------------
+
+    submit_form()
+
+
+    # --------------------------------------------------------
+    # READ SMART RESULTS
+    # --------------------------------------------------------
+
+    results = read_results(
+        "Smart"
+    )
+
+
+    df = build_dataframe(
+        results
+    )
+
+
+    # --------------------------------------------------------
+    # SAVE SMART FILES
+    # --------------------------------------------------------
+
+    save_results(
+
+        df,
+
+        SMART_CSV,
+
+        SMART_MARKDOWN,
+
+        SMART_HISTORY,
+
+        "Smart"
+
+    )
+
+
+    print("\n")
+    print(
+        "=" * 80
+    )
+
+    print(
+        "FINAL SMART RANKINGS"
+    )
 
     print(
         "=" * 80
+    )
+
+    print(
+        df.to_string(
+            index=False
+        )
+    )
+
+    print(
+        "=" * 80
+    )
+
+
+# ============================================================
+# RUN BOTH COMPARISONS
+# ============================================================
+
+try:
+
+    # Existing 24 Hour rankings
+    scrape_24_hour()
+
+    # New Smart rankings
+    scrape_smart()
+
+
+    print("\n")
+    print(
+        "#" * 80
+    )
+
+    print(
+        "ALL SWITCHER SCRAPES COMPLETED SUCCESSFULLY"
+    )
+
+    print(
+        "#" * 80
+    )
+
+    print(
+        "\nGenerated files:"
+    )
+
+    print(
+        f"24 Hour Markdown: {HOUR24_MARKDOWN}"
+    )
+
+    print(
+        f"24 Hour CSV: {HOUR24_CSV}"
+    )
+
+    print(
+        f"24 Hour History: {HOUR24_HISTORY}"
+    )
+
+    print(
+        f"Smart Markdown: {SMART_MARKDOWN}"
+    )
+
+    print(
+        f"Smart CSV: {SMART_CSV}"
+    )
+
+    print(
+        f"Smart History: {SMART_HISTORY}"
     )
 
 
