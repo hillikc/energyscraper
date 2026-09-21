@@ -1,10 +1,10 @@
 | Rank | Supplier | Plan | Estimated Annual Bill | Source | Last Checked |
 |---:|---|---|---:|---|---|
-| **1** | Unknown | Green Electricity | **€1,574.24** | Switcher.ie | 21/09/2026 15:39 |
-| **2** | Unknown | Green Electricity | **€1,585.60** | Switcher.ie | 21/09/2026 15:39 |
-| **3** | Unknown | EnergySaver 16% | **€1,592.13** | Switcher.ie | 21/09/2026 15:39 |
-| **4** | Unknown | Green Electricity | **€1,605.29** | Switcher.ie | 21/09/2026 15:39 |
-| **5** | Unknown | 1 Year Home Electricity 30% DD & eBill | **€1,617.16** | Switcher.ie | 21/09/2026 15:39 |
-| **6** | Yuno Energy | Unknown Plan | **€1,651.90** | Switcher.ie | 21/09/2026 15:39 |
-| **7** | Flogas | Green Electricity | **€1,655.60** | Switcher.ie | 21/09/2026 15:39 |
-| **8** | Unknown | New Elec Only 26% Discount | **€1,685.29** | Switcher.ie | 21/09/2026 15:39 |
+| **1** | Energia | Standard Electricity 30% | **€1,574.24** | Switcher.ie | 21/09/2026 15:46 |
+| **2** | Waterpower | Standard Electricity | **€1,585.60** | Switcher.ie | 21/09/2026 15:46 |
+| **3** | Electric Ireland | EnergySaver 16% | **€1,592.13** | Switcher.ie | 21/09/2026 15:46 |
+| **4** | Waterpower | Standard Electricity | **€1,605.29** | Switcher.ie | 21/09/2026 15:46 |
+| **5** | SSE Airtricity | 1 Year Home Electricity 30% DD & eBill | **€1,617.16** | Switcher.ie | 21/09/2026 15:46 |
+| **6** | Yuno Energy | 1 Year Electricity Variable Plan with Welcome Bonus | **€1,651.90** | Switcher.ie | 21/09/2026 15:46 |
+| **7** | Flogas | Electricity 28% Loyalty Discount | **€1,655.60** | Switcher.ie | 21/09/2026 15:46 |
+| **8** | Bord Gáis Energy | New Elec Only 26% Discount | **€1,685.29** | Switcher.ie | 21/09/2026 15:46 |
