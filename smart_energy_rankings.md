@@ -2,11 +2,11 @@
 
 | Rank | Supplier | Plan | Estimated Annual Bill | Source | Last Checked |
 |---:|---|---|---:|---|---|
-| **1** | Electric Ireland | Home Electric SST Saver 16% | **€1,457.44** | Switcher.ie | 25/09/2026 23:12 |
-| **2** | Electric Ireland | Home Electric+ SST Saver 16% | **€1,457.44** | Switcher.ie | 25/09/2026 23:12 |
-| **3** | Energia | Smart Data 27% | **€1,484.22** | Switcher.ie | 25/09/2026 23:12 |
-| **4** | Waterpower | Waterpower Smart Tariff (SST) | **€1,489.17** | Switcher.ie | 25/09/2026 23:12 |
-| **5** | Energia | Smart 24 Hour 30% | **€1,522.08** | Switcher.ie | 25/09/2026 23:12 |
-| **6** | SSE Airtricity | 1 Year Smart Day/Night/Peak 30% DD & eBill | **€1,525.60** | Switcher.ie | 25/09/2026 23:12 |
-| **7** | Flogas | Smart Electricity 29% Loyalty Discount | **€1,544.72** | Switcher.ie | 25/09/2026 23:12 |
-| **8** | Flogas | Smart 24Hr Electricity 29% Loyalty Discount | **€1,550.32** | Switcher.ie | 25/09/2026 23:12 |
+| **1** | Electric Ireland | Home Electric SST Saver 16% | **€1,457.44** | Switcher.ie | 26/09/2026 04:25 |
+| **2** | Electric Ireland | Home Electric+ SST Saver 16% | **€1,457.44** | Switcher.ie | 26/09/2026 04:25 |
+| **3** | Energia | Smart Data 27% | **€1,484.22** | Switcher.ie | 26/09/2026 04:25 |
+| **4** | Waterpower | Waterpower Smart Tariff (SST) | **€1,489.17** | Switcher.ie | 26/09/2026 04:25 |
+| **5** | Energia | Smart 24 Hour 30% | **€1,522.08** | Switcher.ie | 26/09/2026 04:25 |
+| **6** | SSE Airtricity | 1 Year Smart Day/Night/Peak 30% DD & eBill | **€1,525.60** | Switcher.ie | 26/09/2026 04:25 |
+| **7** | Flogas | Smart Electricity 29% Loyalty Discount | **€1,544.72** | Switcher.ie | 26/09/2026 04:25 |
+| **8** | Flogas | Smart 24Hr Electricity 29% Loyalty Discount | **€1,550.32** | Switcher.ie | 26/09/2026 04:25 |
